@@ -15,6 +15,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param controlTopic  topico dos eventos de controle que empurram a marca d'agua do Flink
  * @param opensAt       inicio da votacao em ISO-8601; vazio significa sem prazo
  * @param closesAt      fim da votacao em ISO-8601; vazio significa sem prazo
+ * @param closingMarginMs margem somada a {@code closesAt} para carimbar a sentinela de
+ *                        encerramento. Precisa exceder o {@code watermark.out.of.orderness.ms}
+ *                        do job, senao a marca d'agua nao ultrapassa a ultima janela e ela
+ *                        nunca fecha.
  */
 @ConfigurationProperties(prefix = "voting")
 public record VotingProperties(
@@ -25,7 +29,8 @@ public record VotingProperties(
         long sendTimeoutMs,
         String controlTopic,
         String opensAt,
-        String closesAt) {
+        String closesAt,
+        long closingMarginMs) {
 
     public VotingProperties {
         if (receiptPepper == null || receiptPepper.isBlank()) {
@@ -49,6 +54,9 @@ public record VotingProperties(
         }
         if (closesAt == null) {
             closesAt = "";
+        }
+        if (closingMarginMs <= 0) {
+            closingMarginMs = 30_000L;
         }
         if (opensAt.isBlank() != closesAt.isBlank()) {
             throw new IllegalStateException(

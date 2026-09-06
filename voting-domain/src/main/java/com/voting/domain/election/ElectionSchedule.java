@@ -23,8 +23,7 @@ public record ElectionSchedule(ElectionId election, Instant opensAt, Instant clo
         Objects.requireNonNull(opensAt, "opensAt");
         Objects.requireNonNull(closesAt, "closesAt");
         if (!closesAt.isAfter(opensAt)) {
-            throw new IllegalArgumentException(
-                    "a eleicao fecharia antes de abrir: " + opensAt + " .. " + closesAt);
+            throw new InvalidElectionScheduleException(opensAt, closesAt);
         }
     }
 

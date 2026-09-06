@@ -34,6 +34,10 @@ voting:
   # confortavelmente menor que a janela da Merkle Tree, senao uma janela sem votos nao fecha
   # e os eleitores dela ficam sem prova de inclusao.
   heartbeat-interval-ms: ${VOTING_HEARTBEAT_MS:5000}
+  # Margem somada ao fechamento para carimbar a sentinela. Precisa exceder o
+  # watermark.out.of.orderness.ms do job (default 5000), senao a marca d'agua nao ultrapassa
+  # a ultima janela e os ultimos votos ficam sem raiz.
+  closing-margin-ms: ${VOTING_CLOSING_MARGIN_MS:30000}
 
 management:
   endpoints:

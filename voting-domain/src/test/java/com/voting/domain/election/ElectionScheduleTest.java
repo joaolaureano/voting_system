@@ -48,7 +48,7 @@ class ElectionScheduleTest {
     @Test
     void recusaPeriodoInvertido() {
         assertThatThrownBy(() -> new ElectionSchedule(ELEICAO, FECHA, ABRE))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidElectionScheduleException.class)
                 .hasMessageContaining("fecharia antes de abrir");
     }
 

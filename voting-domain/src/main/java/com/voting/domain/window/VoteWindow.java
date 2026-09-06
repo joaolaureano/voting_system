@@ -24,7 +24,7 @@ public record VoteWindow(Instant start, Instant end) {
         Objects.requireNonNull(start, "start");
         Objects.requireNonNull(end, "end");
         if (!end.isAfter(start)) {
-            throw new IllegalArgumentException("janela vazia: " + start + " .. " + end);
+            throw new InvalidWindowException("janela vazia: " + start + " .. " + end);
         }
     }
 
@@ -33,7 +33,7 @@ public record VoteWindow(Instant start, Instant end) {
         Objects.requireNonNull(instante, "instante");
         long tamanhoMs = tamanho.toMillis();
         if (tamanhoMs <= 0) {
-            throw new IllegalArgumentException("tamanho da janela deve ser positivo");
+            throw new InvalidWindowException("tamanho da janela deve ser positivo: " + tamanho);
         }
         long inicio = Math.floorDiv(instante.toEpochMilli(), tamanhoMs) * tamanhoMs;
         return new VoteWindow(Instant.ofEpochMilli(inicio), Instant.ofEpochMilli(inicio + tamanhoMs));

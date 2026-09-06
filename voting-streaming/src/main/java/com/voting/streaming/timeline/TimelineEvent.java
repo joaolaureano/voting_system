@@ -1,4 +1,4 @@
-package com.voting.streaming.merkle;
+package com.voting.streaming.timeline;
 
 import com.voting.contracts.ControlEvent;
 import com.voting.contracts.VoteCastEvent;
@@ -10,6 +10,10 @@ import java.time.Instant;
  * <p>Nao e contrato de fio - existe para que os dois topicos possam ser unidos num fluxo so,
  * com uma marca d'agua unica. E a uniao que resolve o travamento: enquanto os batimentos
  * chegarem, o tempo de evento avanca mesmo sem votos, e as janelas fecham.
+ *
+ * <p>Fica em {@code timeline}, e nao em {@code merkle}: quem se beneficia das janelas fechando
+ * e a Merkle Tree, mas o envelope nao sabe disso. Ele resolve o avanco do tempo de evento no
+ * job inteiro, e qualquer operador por janela dependeria dele do mesmo jeito.
  *
  * <p>Os votos seguem adiante; os eventos de controle morrem no filtro logo depois. Eles
  * cumpriram seu papel so por terem existido no fluxo com um horario.

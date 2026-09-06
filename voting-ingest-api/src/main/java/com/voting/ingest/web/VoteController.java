@@ -9,9 +9,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Recebe votos. Traduz HTTP para o caso de uso e de volta - nada alem disso. */
+/**
+ * Recebe votos. Traduz HTTP para o caso de uso e de volta - nada alem disso.
+ *
+ * <p>O caminho aqui e relativo: o prefixo de versao vem de {@link ApiVersionConfiguration},
+ * entao a rota efetiva e {@code /api/v1/votes}.
+ */
 @RestController
-@RequestMapping("/api/v1/votes")
+@RequestMapping("/votes")
 public class VoteController {
 
     private final CastVoteUseCase castVote;

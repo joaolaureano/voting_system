@@ -50,6 +50,9 @@ class VoteWindowTest {
     @Test
     void recusaTamanhoInvalido() {
         assertThatThrownBy(() -> VoteWindow.containing(Instant.EPOCH, Duration.ZERO))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(InvalidWindowException.class)
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(InvalidWindowException.class))
+                .extracting(InvalidWindowException::code)
+                .isEqualTo("JANELA_INVALIDA");
     }
 }

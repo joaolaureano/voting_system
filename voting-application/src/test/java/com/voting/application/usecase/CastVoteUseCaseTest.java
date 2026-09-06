@@ -7,6 +7,7 @@ import com.voting.application.port.ReceiptPublisher;
 import com.voting.application.port.VoteEventPublisher;
 import com.voting.domain.election.ElectionClosedException;
 import com.voting.domain.election.ElectionSchedule;
+import com.voting.domain.election.WrongElectionException;
 import com.voting.domain.model.ElectionId;
 import com.voting.domain.model.Vote;
 import com.voting.domain.receipt.ReceiptPolicy;
@@ -96,7 +97,11 @@ class CastVoteUseCaseTest {
         CastVoteCommand outra =
                 new CastVoteCommand("br-2030-presidencial", "voter-1", "cand-1", "PT-A", "SP", "Sao Paulo");
 
-        assertThatThrownBy(() -> useCase.execute(outra)).isInstanceOf(IllegalArgumentException.class);
+        // Nomeada, e nao IllegalArgumentException: quem trata decide pelo tipo, sem ler
+        // a mensagem, e a borda consegue devolver um codigo de erro proprio.
+        assertThatThrownBy(() -> useCase.execute(outra))
+                .isInstanceOf(WrongElectionException.class)
+                .hasMessageContaining("br-2030-presidencial");
         assertThat(votosPublicados).isEmpty();
     }
 

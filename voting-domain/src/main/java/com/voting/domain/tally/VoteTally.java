@@ -15,10 +15,10 @@ public record VoteTally(TallyDimension dimension, String key, long count, Instan
         Objects.requireNonNull(dimension, "dimension");
         Objects.requireNonNull(updatedAt, "updatedAt");
         if (key == null || key.isBlank()) {
-            throw new IllegalArgumentException("chave de apuracao nao pode ser vazia");
+            throw new InvalidTallyException("chave de apuracao nao pode ser vazia");
         }
         if (count < 0) {
-            throw new IllegalArgumentException("contagem nao pode ser negativa: " + count);
+            throw new InvalidTallyException("contagem nao pode ser negativa: " + count);
         }
     }
 

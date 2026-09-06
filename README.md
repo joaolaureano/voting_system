@@ -407,6 +407,14 @@ Não há como saber o instante do clique sem confiar no relógio do dispositivo,
 tornaria o encerramento contornável por antedatação. O preço é que o carimbo inclui a latência
 de rede — diferença sub-segundo, relevante apenas na fronteira do prazo.
 
+A sentinela de encerramento é carimbada em `closesAt + voting.closing-margin-ms` (30s por
+padrão), e **não** no instante em que o agendador acorda. O agendador dispara em algum ponto
+dentro do seu intervalo; herdar esse atraso deixaria a sentinela com um horário diferente a
+cada execução, e esse horário entra no log — a fonte a partir da qual as raízes são
+reproduzidas. A margem também precisa exceder o `watermark.out.of.orderness.ms` do job (5s por
+padrão): a marca d'água é `maior_horário_visto − out_of_orderness`, então uma sentinela perto
+demais do fechamento deixaria a última janela sem fechar.
+
 ### Duas camadas, uma autoridade
 
 A API recusa com `403 VOTACAO_FECHADA` por cortesia, para o eleitor não receber um comprovante

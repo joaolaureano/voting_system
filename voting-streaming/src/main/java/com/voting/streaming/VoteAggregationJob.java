@@ -11,7 +11,7 @@ import com.voting.domain.election.ElectionSchedule;
 import com.voting.domain.tally.TallyDimension;
 import com.voting.streaming.config.JobConfig;
 import com.voting.streaming.dedup.DedupProcessFunction;
-import com.voting.streaming.merkle.TimelineEvent;
+import com.voting.streaming.timeline.TimelineEvent;
 import com.voting.streaming.merkle.WindowMarkerFunction;
 import com.voting.streaming.serde.JsonDeserializationSchema;
 import com.voting.streaming.serde.JsonTypeInfo;
@@ -23,7 +23,7 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
-import org.apache.flink.streaming.api.CheckpointingMode;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -74,7 +74,11 @@ public final class VoteAggregationJob {
 
     static void configure(StreamExecutionEnvironment env, JobConfig config) {
         env.setParallelism(config.parallelism());
-        env.enableCheckpointing(config.checkpointIntervalMs(), CheckpointingMode.EXACTLY_ONCE);
+        env.enableCheckpointing(config.checkpointIntervalMs());
+        // enableCheckpointing(long, CheckpointingMode) e o enum de streaming.api estao
+        // depreciados no Flink 1.20 em favor de core.execution.CheckpointingMode configurado
+        // pelo CheckpointConfig.
+        env.getCheckpointConfig().setCheckpointingConsistencyMode(CheckpointingMode.EXACTLY_ONCE);
     }
 
     /**
@@ -140,7 +144,7 @@ public final class VoteAggregationJob {
             StreamExecutionEnvironment env, DataStream<TimelineEvent> timeline, JobConfig config) {
 
         SingleOutputStreamOperator<VoteCastEvent> admitidos =
-                dedup(apenasVotos(timeline), config.electionSchedule());
+                dedup(votesOnly(timeline), config.electionSchedule());
 
         admitidos.getSideOutput(DedupProcessFunction.REJECTED)
                 .sinkTo(rejectedSink(config))
@@ -193,7 +197,7 @@ public final class VoteAggregationJob {
      * Descarta os eventos de controle depois de eles ja terem cumprido seu papel: existir no
      * fluxo com um horario, empurrando a marca d'agua.
      */
-    public static DataStream<VoteCastEvent> apenasVotos(DataStream<TimelineEvent> timeline) {
+    public static DataStream<VoteCastEvent> votesOnly(DataStream<TimelineEvent> timeline) {
         return timeline
                 .filter(TimelineEvent::hasVote)
                 .name("descarta-controle")

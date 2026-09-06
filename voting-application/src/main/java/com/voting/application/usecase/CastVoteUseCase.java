@@ -4,6 +4,7 @@ import com.voting.application.port.ReceiptPublisher;
 import com.voting.application.port.VoteEventPublisher;
 import com.voting.domain.election.ElectionClosedException;
 import com.voting.domain.election.ElectionSchedule;
+import com.voting.domain.election.WrongElectionException;
 import com.voting.domain.model.CandidateId;
 import com.voting.domain.model.ElectionId;
 import com.voting.domain.model.PartyId;
@@ -62,8 +63,7 @@ public final class CastVoteUseCase {
                 ? schedule.election()
                 : ElectionId.of(command.electionId());
         if (!schedule.election().equals(eleicaoDoComando)) {
-            throw new IllegalArgumentException(
-                    "voto endereçado a outra eleicao: " + eleicaoDoComando + " != " + schedule.election());
+            throw new WrongElectionException(schedule.election(), eleicaoDoComando);
         }
         if (!schedule.isOpenAt(agora)) {
             throw new ElectionClosedException(schedule, agora);

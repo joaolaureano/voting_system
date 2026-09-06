@@ -1,5 +1,6 @@
 package com.voting.domain.election;
 
+import com.voting.domain.DomainException;
 import java.time.Instant;
 
 /**
@@ -9,7 +10,7 @@ import java.time.Instant;
  * um comprovante que a apuracao vai descartar depois. A autoridade sobre o prazo continua
  * sendo o Flink - a borda so antecipa a resposta.
  */
-public class ElectionClosedException extends RuntimeException {
+public class ElectionClosedException extends DomainException {
 
     private static final long serialVersionUID = 1L;
 
@@ -17,7 +18,7 @@ public class ElectionClosedException extends RuntimeException {
     private final transient Instant attemptedAt;
 
     public ElectionClosedException(ElectionSchedule schedule, Instant attemptedAt) {
-        super(mensagem(schedule, attemptedAt));
+        super("VOTACAO_FECHADA", mensagem(schedule, attemptedAt));
         this.schedule = schedule;
         this.attemptedAt = attemptedAt;
     }

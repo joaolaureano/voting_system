@@ -27,8 +27,8 @@ public final class JsonTypeInfo<T> extends TypeInformation<T> {
     public static final TypeInformation<AcceptedVoteEvent> ACCEPTED = jsonOf(AcceptedVoteEvent.class);
     public static final TypeInformation<WindowMarkerEvent> WINDOW_MARKER = jsonOf(WindowMarkerEvent.class);
     public static final TypeInformation<ControlEvent> CONTROL = jsonOf(ControlEvent.class);
-    public static final TypeInformation<com.voting.streaming.merkle.TimelineEvent> TIMELINE =
-            jsonOf(com.voting.streaming.merkle.TimelineEvent.class);
+    public static final TypeInformation<com.voting.streaming.timeline.TimelineEvent> TIMELINE =
+            jsonOf(com.voting.streaming.timeline.TimelineEvent.class);
 
     private final Class<T> type;
 
@@ -72,7 +72,15 @@ public final class JsonTypeInfo<T> extends TypeInformation<T> {
         return false;
     }
 
+    /**
+     * Depreciado no Flink 1.20 em favor de {@code createSerializer(SerializerConfig)}, mas
+     * ainda <em>abstrato</em> em {@code TypeInformation} - nao ha como nao implementa-lo. A
+     * sobrecarga nova tem implementacao padrao que delega para esta, entao os dois caminhos
+     * acabam aqui. Sai quando o projeto subir para o Flink 2.
+     */
     @Override
+    @Deprecated
+    @SuppressWarnings("deprecation")
     public TypeSerializer<T> createSerializer(ExecutionConfig config) {
         return new JsonTypeSerializer<>(type);
     }

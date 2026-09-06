@@ -141,7 +141,9 @@ class VoteControllerTest {
                                  "candidateId":"cand-1","partyId":"PT-A","state":"SP","city":"Sao Paulo"}
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("VOTO_INVALIDO"));
+                // Codigo proprio, e nao o generico VOTO_INVALIDO: o cliente distingue
+                // "endereçou para a eleicao errada" de "faltou um campo" sem ler a mensagem.
+                .andExpect(jsonPath("$.error").value("ELEICAO_INCORRETA"));
     }
 
     @Test

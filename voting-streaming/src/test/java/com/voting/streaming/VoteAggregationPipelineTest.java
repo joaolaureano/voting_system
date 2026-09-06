@@ -17,7 +17,7 @@ import com.voting.domain.model.VoterId;
 import com.voting.domain.receipt.ReceiptPolicy;
 import com.voting.domain.receipt.Sha256ReceiptPolicy;
 import com.voting.domain.tally.TallyDimension;
-import com.voting.streaming.merkle.TimelineEvent;
+import com.voting.streaming.timeline.TimelineEvent;
 import com.voting.streaming.serde.JsonTypeInfo;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -237,7 +237,7 @@ class VoteAggregationPipelineTest {
                 .setParallelism(1);
 
         List<TallyUpdateEvent> apuracao = colher(VoteAggregationJob.tally(
-                VoteAggregationJob.dedup(VoteAggregationJob.apenasVotos(linha), AGENDA),
+                VoteAggregationJob.dedup(VoteAggregationJob.votesOnly(linha), AGENDA),
                 TallyDimension.CANDIDATE));
 
         assertThat(contagemFinal(apuracao)).containsExactlyInAnyOrderEntriesOf(Map.of("cand-1", 2L));

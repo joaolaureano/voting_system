@@ -1,5 +1,6 @@
 package com.voting.ingest.web;
 
+import com.voting.domain.DomainException;
 import com.voting.domain.election.ElectionClosedException;
 import com.voting.ingest.kafka.EventPublicationException;
 import java.util.stream.Collectors;
@@ -43,9 +44,20 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ElectionClosedException.class)
     public ResponseEntity<ApiError> electionClosed(ElectionClosedException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new ApiError("VOTACAO_FECHADA", e.getMessage()));
+                .body(new ApiError(e.code(), e.getMessage()));
     }
 
+    /**
+     * Recusas que o dominio sabe nomear. O codigo vem da propria excecao, entao acrescentar
+     * uma regra nova nao exige tocar neste handler - e o cliente decide pelo codigo, nao pelo
+     * texto da mensagem, que pode mudar.
+     */
+    @ExceptionHandler(DomainException.class)
+    public ResponseEntity<ApiError> domainRule(DomainException e) {
+        return ResponseEntity.badRequest().body(new ApiError(e.code(), e.getMessage()));
+    }
+
+    /** Invariantes dos value objects, que ainda falam a lingua do {@code java.lang}. */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> invalidVote(IllegalArgumentException e) {
         return ResponseEntity.badRequest().body(new ApiError("VOTO_INVALIDO", e.getMessage()));
