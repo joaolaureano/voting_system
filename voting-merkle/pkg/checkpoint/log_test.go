@@ -2,6 +2,7 @@ package checkpoint
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -244,5 +245,39 @@ func TestLoteVazioTemAArvoreVaziaDaRfc(t *testing.T) {
 	}
 	if !bytes.Equal(selados[0].Root, merkle.New(nil).Root()) {
 		t.Fatal("raiz do lote vazio divergiu da arvore vazia")
+	}
+}
+
+// O consumo e no minimo uma vez: uma queda entre selar e confirmar o offset faz o marcador
+// chegar de novo em toda retomada. Repetir nao pode ser tratado como defeito.
+func TestMarcadorReentregueDepoisDoSeloEIgnorado(t *testing.T) {
+	log := NewLog()
+	addTodas(t, log, "j1", []Leaf{folha(1), folha(2)})
+	if _, err := log.Expect("j1", 2); err != nil {
+		t.Fatalf("Expect: %v", err)
+	}
+
+	selados, err := log.Expect("j1", 2)
+	if err != nil {
+		t.Fatalf("marcador reentregue virou erro: %v", err)
+	}
+	if len(selados) != 0 {
+		t.Fatalf("marcador reentregue selou de novo: %d", len(selados))
+	}
+	if n := len(log.Checkpoints()); n != 1 {
+		t.Fatalf("esperava 1 checkpoint, veio %d", n)
+	}
+}
+
+// Contagem diferente para um lote ja selado nao e reentrega: e alguem contando outra coisa.
+func TestMarcadorComOutraContagemDepoisDoSeloFalha(t *testing.T) {
+	log := NewLog()
+	addTodas(t, log, "j1", []Leaf{folha(1), folha(2)})
+	if _, err := log.Expect("j1", 2); err != nil {
+		t.Fatalf("Expect: %v", err)
+	}
+
+	if _, err := log.Expect("j1", 3); !errors.Is(err, ErrLoteJaSelado) {
+		t.Fatalf("esperava ErrLoteJaSelado, veio %v", err)
 	}
 }

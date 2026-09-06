@@ -426,15 +426,15 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1788726236.2259407,
-    "seen": 1788726239.104794,
-    "ast_hash": "5009b27dc4220f9a3c08212831616590",
+    "mtime": 1788729065.8006425,
+    "seen": 1788729072.241313,
+    "ast_hash": "508770edb27e4cf928f5f83028156300",
     "semantic_hash": ""
   },
   "infra/docker-compose.yml": {
-    "mtime": 1788685066.80448,
-    "seen": 1788686675.571837,
-    "ast_hash": "20b6b05db3ba3c30164eaee975d632fb",
+    "mtime": 1788728550.7258415,
+    "seen": 1788728710.051798,
+    "ast_hash": "8730a5babd63b62e479ed803e2d6c982",
     "semantic_hash": ""
   },
   "voting-ingest-api/src/main/resources/application.yml": {
@@ -468,9 +468,9 @@
     "semantic_hash": ""
   },
   "voting-merkle/cmd/merkle-service/main.go": {
-    "mtime": 1788683344.5768416,
-    "seen": 1788684047.874773,
-    "ast_hash": "bfd2be041d1035725713accadc4c525d",
+    "mtime": 1788727215.2514567,
+    "seen": 1788727590.071396,
+    "ast_hash": "8b0e7dd716646277d5ff2ab95267b449",
     "semantic_hash": ""
   },
   "voting-merkle/go.mod": {
@@ -480,9 +480,9 @@
     "semantic_hash": ""
   },
   "voting-merkle/internal/api/server.go": {
-    "mtime": 1788683344.570769,
-    "seen": 1788684047.8747761,
-    "ast_hash": "613d0a2e5fcda977849d4d45b108f205",
+    "mtime": 1788727227.3366904,
+    "seen": 1788727590.0713978,
+    "ast_hash": "12364aaf4d1579e1ba484726191d349f",
     "semantic_hash": ""
   },
   "voting-merkle/internal/api/server_test.go": {
@@ -492,9 +492,9 @@
     "semantic_hash": ""
   },
   "voting-merkle/internal/kafkaio/consumer.go": {
-    "mtime": 1788683264.7777407,
-    "seen": 1788684047.874779,
-    "ast_hash": "2ee549ad8686444d62afea4193c0173f",
+    "mtime": 1788727180.9873297,
+    "seen": 1788727590.0714,
+    "ast_hash": "dbdce3a4e0497c0fdf2ad06eb19b7ccd",
     "semantic_hash": ""
   },
   "voting-merkle/internal/kafkaio/publisher.go": {
@@ -516,15 +516,15 @@
     "semantic_hash": ""
   },
   "voting-merkle/pkg/checkpoint/log.go": {
-    "mtime": 1788688271.048933,
-    "seen": 1788688548.440983,
-    "ast_hash": "18dec68f1d602860f19b0bf9f20875e3",
+    "mtime": 1788727542.0856745,
+    "seen": 1788727590.0714052,
+    "ast_hash": "942fbda0921067106db668cecd6c0956",
     "semantic_hash": ""
   },
   "voting-merkle/pkg/checkpoint/log_test.go": {
-    "mtime": 1788683182.9208024,
-    "seen": 1788684047.874788,
-    "ast_hash": "2ef303fe0a6504f6896f8c130115a218",
+    "mtime": 1788727558.3257992,
+    "seen": 1788727590.0714061,
+    "ast_hash": "345727faa07a8ed479e94e55d6d3897c",
     "semantic_hash": ""
   },
   "voting-merkle/pkg/merkle/proof.go": {
@@ -645,6 +645,96 @@
     "mtime": 1788726022.907527,
     "seen": 1788726239.104792,
     "ast_hash": "f003d36a148991bdfc764bcbec63b681",
+    "semantic_hash": ""
+  },
+  "voting-merkle/pkg/checkpoint/store.go": {
+    "mtime": 1788726994.9657118,
+    "seen": 1788727590.071407,
+    "ast_hash": "dc4209b91cb2126f8c8d20d36abb5ae6",
+    "semantic_hash": ""
+  },
+  "voting-merkle/pkg/journal/bench_test.go": {
+    "mtime": 1788727391.9147592,
+    "seen": 1788727590.071408,
+    "ast_hash": "c0c2cf9eca9f051df011b5d4dab0b2d4",
+    "semantic_hash": ""
+  },
+  "voting-merkle/pkg/journal/journal.go": {
+    "mtime": 1788727122.706946,
+    "seen": 1788727590.071409,
+    "ast_hash": "c7b3825b295e65e56f28f35029496c8e",
+    "semantic_hash": ""
+  },
+  "voting-merkle/pkg/journal/journal_test.go": {
+    "mtime": 1788727361.4552917,
+    "seen": 1788727590.07141,
+    "ast_hash": "1447d4b72101358584209f50dc596e76",
+    "semantic_hash": ""
+  },
+  "voting-merkle/pkg/wal/wal.go": {
+    "mtime": 1788727288.939752,
+    "seen": 1788727590.071415,
+    "ast_hash": "07589b213ebb0407dce674362b5c711f",
+    "semantic_hash": ""
+  },
+  "voting-merkle/pkg/wal/wal_test.go": {
+    "mtime": 1788727296.7622602,
+    "seen": 1788727590.0714161,
+    "ast_hash": "e39190a95d571e99c9b0fd4bd9ca9ac9",
+    "semantic_hash": ""
+  },
+  "voting-merkle/cmd/vetores/main.go": {
+    "mtime": 1788728336.2380764,
+    "seen": 1788728710.0517561,
+    "ast_hash": "3203444b7a46353d167c62465f829035",
+    "semantic_hash": ""
+  },
+  "voting-web/package.json": {
+    "mtime": 1788729019.25024,
+    "seen": 1788729072.2413068,
+    "ast_hash": "f11668dc6646ebb35a8d3bcb2083e859",
+    "semantic_hash": ""
+  },
+  "voting-web/public/app.js": {
+    "mtime": 1788728692.9380753,
+    "seen": 1788728710.0517929,
+    "ast_hash": "6f4a4bd633923d26a2f151de921403f5",
+    "semantic_hash": ""
+  },
+  "voting-web/public/verify.js": {
+    "mtime": 1788728302.038467,
+    "seen": 1788728710.0517938,
+    "ast_hash": "35ebe575f7f52da479e11b5a4c878865",
+    "semantic_hash": ""
+  },
+  "voting-web/test/verify_test.js": {
+    "mtime": 1788728373.0097315,
+    "seen": 1788728710.051795,
+    "ast_hash": "a9a9b58a649bc24b134264cc4d264208",
+    "semantic_hash": ""
+  },
+  "voting-web/test/vetores.json": {
+    "mtime": 1788728336.753399,
+    "seen": 1788728710.051796,
+    "ast_hash": "ab511272eed9f02d22ec43fe7674bf8b",
+    "semantic_hash": ""
+  },
+  "voting-web/README.md": {
+    "mtime": 1788729042.593039,
+    "seen": 1788729072.241316,
+    "ast_hash": "b7a9d32afcc3e8dd2f34afc0f749a127",
+    "semantic_hash": ""
+  },
+  "voting-web/public/index.html": {
+    "mtime": 1788728410.6346822,
+    "seen": 1788728710.0518012,
+    "ast_hash": "c05406e20e623171c80eda516d6f2ff1",
+    "semantic_hash": ""
+  },
+  "voting-web/test/browser/check.mjs": {
+    "mtime": 1788729004.1602938,
+    "seen": 1788729072.24131,
+    "ast_hash": "f4bfc66d36e2762e968800ca0ad68865",
     "semantic_hash": ""
   }
 }

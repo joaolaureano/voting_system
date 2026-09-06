@@ -76,6 +76,14 @@ func (s *Server) healthz(w http.ResponseWriter, _ *http.Request) {
 		corpo["head"] = hex.EncodeToString(head.Hash)
 		corpo["headWindow"] = head.BatchID
 	}
+	// A identidade do diario diz de qual copia do estado estas respostas vieram. Quando
+	// ela muda entre duas consultas, o volume foi trocado e a cadeia foi reconstruida do
+	// zero - um fato de operacao que nao deve precisar de acesso ao container para ser visto.
+	if id := s.log.StoreID(); id != "" {
+		corpo["storeId"] = id
+	} else {
+		corpo["storeId"] = "memoria"
+	}
 	writeJSON(w, http.StatusOK, corpo)
 }
 
