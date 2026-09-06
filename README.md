@@ -257,9 +257,7 @@ cd voting-merkle && go test ./pkg/... -run '^$' -bench . -benchtime 200x
 Os benchmarks cobrem os dois caminhos que importam: selar uma janela (`New`, `Seal`) e servir
 uma prova (`Prove`, `Lookup`), em lotes de 1 mil a 100 mil folhas.
 
-Medido com profadvisor, em capturas adjacentes (as duas medições em sequência, sob a mesma
-carga de máquina — capturas separadas no tempo variaram até 33% em código idêntico), num lote
-de 100 mil folhas:
+Medido com profadvisor, em capturas adjacentes, num lote de 100 mil folhas:
 
 | | antes | depois | alocações |
 |---|---|---|---|
@@ -273,6 +271,33 @@ a prova virou um passeio de O(log n) leituras, sem hash nenhum. O custo é dobra
 
 O ganho em `New` vem de reaproveitar o hasher e alocar um buffer por nível, em vez de um digest
 por nó.
+
+#### Como medir sem se enganar
+
+O piso de ruído desta máquina foi medido com um teste A/A — duas capturas do **mesmo código**,
+em que qualquer diferença é artefato:
+
+| escala do benchmark | desvio A/A | confiável? |
+|---|---|---|
+| `New`, milissegundos | ±0,4 a 2,5% | sim |
+| `Verify`, microssegundos | ±0,2 a 1,1% | sim |
+| `Prove`, nanossegundos, `-benchtime 200x` | ±10 a 20% | **não** |
+| `Prove`, nanossegundos, `-benchtime 200000x` | ±0,05 a 0,31% | sim (até 10 mil folhas) |
+| `Prove`, 100 mil folhas, qualquer benchtime | ±10% | **não** |
+
+Duas armadilhas, nessa ordem:
+
+**`-benchtime` baixo demais para operações de nanossegundos.** Com `200x`, uma operação de
+150 ns dá 30 µs de trabalho por amostra — o overhead do timer domina, e o p-valor declara
+significativa uma diferença que é só jitter. O p-valor mede se as duas amostras diferem, não se
+a mudança causou a diferença.
+
+**Capturas separadas no tempo.** Com carga de máquina variando entre elas, o mesmo código já
+apareceu 33% mais lento. Meça sempre as duas variantes em sequência.
+
+O caso de 100 mil folhas não estabiliza com mais iterações: os níveis somam ~6,4 MB, maior que
+o L2, e a prova toca um nó por nível em endereços espalhados. Nessa escala `Prove` é limitado
+por cache miss, não por computação — a variância vem do estado de cache entre processos.
 
 ### Limitação conhecida: sem persistência
 
