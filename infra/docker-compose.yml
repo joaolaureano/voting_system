@@ -51,6 +51,14 @@ services:
         }
         criar votes.cast 6
         criar votes.rejected 3
+        criar votes.accepted 6
+        # votes.control com uma particao: e um fluxo minusculo, e manter a ordem dos
+        # batimentos simplifica o raciocinio sobre a marca d'agua.
+        criar votes.control 1
+        # votes.windows com UMA particao de proposito: a ordem dos marcadores e o que define
+        # a sequencia da cadeia de raizes, e so uma particao garante essa ordem.
+        criar votes.windows 1
+        criar merkle.roots 1 cleanup.policy=compact
         criar votes.receipts 6 cleanup.policy=compact
         criar results.by-candidate 3 cleanup.policy=compact
         criar results.by-state 3 cleanup.policy=compact
@@ -74,11 +82,31 @@ services:
       VOTING_ELECTION_ID: br-2026-presidencial
       # Em producao isto vem de um cofre de segredos, jamais do compose.
       VOTING_RECEIPT_PEPPER: pepper-de-desenvolvimento-trocar-em-producao
+      # Batimento curto no ambiente local, para casar com a janela de 15s do job.
+      VOTING_HEARTBEAT_MS: 3000
+      # Defina VOTING_OPENS_AT / VOTING_CLOSES_AT (ISO-8601) para uma eleicao com prazo.
+      VOTING_OPENS_AT: ${VOTING_OPENS_AT:-}
+      VOTING_CLOSES_AT: ${VOTING_CLOSES_AT:-}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health"]
       interval: 5s
       timeout: 5s
       retries: 20
+
+  merkle:
+    build:
+      context: ../voting-merkle
+    container_name: voting-merkle
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    ports:
+      - "8083:8083"
+    environment:
+      KAFKA_BROKERS: kafka:9092
+    command:
+      - --brokers=kafka:9092
+      - --addr=:8083
 
   jobmanager:
     build:

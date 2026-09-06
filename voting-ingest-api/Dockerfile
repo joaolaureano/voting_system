@@ -9,7 +9,7 @@ COPY voting-contracts/pom.xml voting-contracts/
 COPY voting-application/pom.xml voting-application/
 COPY voting-ingest-api/pom.xml voting-ingest-api/
 COPY voting-streaming/pom.xml voting-streaming/
-COPY voting-simulator/pom.xml voting-simulator/
+COPY voting-benchmark/pom.xml voting-benchmark/
 RUN mvn -q -pl voting-ingest-api -am dependency:go-offline -DskipTests || true
 
 COPY voting-domain/src voting-domain/src

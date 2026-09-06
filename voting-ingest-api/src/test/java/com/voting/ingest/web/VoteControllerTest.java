@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.voting.application.port.ReceiptPublisher;
 import com.voting.application.port.VoteEventPublisher;
 import com.voting.application.usecase.CastVoteUseCase;
+import com.voting.domain.election.ElectionSchedule;
 import com.voting.domain.model.ElectionId;
 import com.voting.domain.model.Vote;
 import com.voting.domain.receipt.Sha256ReceiptPolicy;
@@ -39,6 +40,9 @@ class VoteControllerTest {
     static final List<Vote> PUBLICADOS = new ArrayList<>();
     static volatile boolean kafkaIndisponivel = false;
 
+    static final ElectionId ELEICAO = ElectionId.of("br-2026-presidencial");
+    static final Instant AGORA = Instant.parse("2026-10-04T13:00:00Z");
+
     @TestConfiguration
     static class PortasEmMemoria {
 
@@ -61,11 +65,11 @@ class VoteControllerTest {
         @Bean
         CastVoteUseCase castVoteUseCase(VoteEventPublisher votes, ReceiptPublisher receipts) {
             return new CastVoteUseCase(
-                    ElectionId.of("br-2026-presidencial"),
+                    ElectionSchedule.alwaysOpen(ELEICAO),
                     new Sha256ReceiptPolicy("pepper-de-teste"),
                     votes,
                     receipts,
-                    Clock.fixed(Instant.parse("2026-10-04T13:00:00Z"), ZoneOffset.UTC));
+                    Clock.fixed(AGORA, ZoneOffset.UTC));
         }
     }
 
@@ -103,6 +107,19 @@ class VoteControllerTest {
                 .andReturn().getResponse().getContentAsString();
 
         assertThat(primeiro).isEqualTo(segundo);
+    }
+
+    // O horario do voto e do servidor. Mandar castAt no corpo nao muda nada - se mudasse,
+    // bastaria antedatar o voto para furar o encerramento.
+    @Test
+    void ignoraOHorarioEnviadoPeloCliente() throws Exception {
+        mvc.perform(post("/api/v1/votes").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"voterId":"voter-9","candidateId":"cand-1","partyId":"PT-A",
+                                 "state":"SP","city":"Sao Paulo","castAt":"2020-01-01T00:00:00Z"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.castAt").value("2026-10-04T13:00:00Z"));
     }
 
     @Test

@@ -6,7 +6,7 @@ import com.voting.contracts.VoteEventMapper;
 import com.voting.domain.ballot.AdmissionDecision;
 import com.voting.domain.ballot.RejectionReason;
 import com.voting.domain.ballot.VoteAdmission;
-import com.voting.domain.model.ElectionId;
+import com.voting.domain.election.ElectionSchedule;
 import com.voting.domain.model.Vote;
 import com.voting.domain.receipt.VoteReceipt;
 import com.voting.streaming.serde.JsonTypeInfo;
@@ -40,19 +40,30 @@ public final class DedupProcessFunction extends KeyedProcessFunction<String, Vot
             new OutputTag<>("votos-rejeitados", JsonTypeInfo.REJECTED);
 
     private final String electionId;
+    private final String opensAt;
+    private final String closesAt;
 
     private transient VoteAdmission admission;
     private transient ValueState<String> firstReceipt;
     private transient org.apache.flink.metrics.Counter acceptedVotes;
     private transient org.apache.flink.metrics.Counter rejectedVotes;
 
-    public DedupProcessFunction(String electionId) {
-        this.electionId = electionId;
+    /**
+     * Recebe a agenda desmontada em Strings porque a funcao e serializada e enviada aos
+     * TaskManagers; remontar na abertura evita depender da serializacao dos tipos do dominio.
+     */
+    public DedupProcessFunction(ElectionSchedule schedule) {
+        this.electionId = schedule.election().value();
+        this.opensAt = schedule.opensAt().toString();
+        this.closesAt = schedule.closesAt().toString();
     }
 
     @Override
     public void open(Configuration parameters) {
-        admission = new VoteAdmission(ElectionId.of(electionId));
+        admission = new VoteAdmission(new ElectionSchedule(
+                com.voting.domain.model.ElectionId.of(electionId),
+                java.time.Instant.parse(opensAt),
+                java.time.Instant.parse(closesAt)));
         // O estado guarda o hash, e nao o VoteReceipt: uma String tem serializador nativo no
         // Flink e mantem o savepoint legivel sem depender das classes do dominio.
         firstReceipt = getRuntimeContext()

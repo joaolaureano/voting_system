@@ -24,9 +24,9 @@
     "semantic_hash": ""
   },
   "voting-application/src/main/java/com/voting/application/usecase/CastVoteCommand.java": {
-    "mtime": 1788679211.8350248,
-    "seen": 1788681608.525163,
-    "ast_hash": "06a54e4cb491bc33332d3ba577666903",
+    "mtime": 1788684696.7005296,
+    "seen": 1788686675.571696,
+    "ast_hash": "db86dff3ad2337897648c937bbbc9f63",
     "semantic_hash": ""
   },
   "voting-application/src/main/java/com/voting/application/usecase/CastVoteResult.java": {
@@ -36,15 +36,15 @@
     "semantic_hash": ""
   },
   "voting-application/src/main/java/com/voting/application/usecase/CastVoteUseCase.java": {
-    "mtime": 1788679211.841151,
-    "seen": 1788681608.525166,
-    "ast_hash": "f52591337fe53e962a6fbe631aae4747",
+    "mtime": 1788684696.7008367,
+    "seen": 1788686675.571699,
+    "ast_hash": "0445f76a1715bd05ed2a2ec28fbc9e0e",
     "semantic_hash": ""
   },
   "voting-application/src/test/java/com/voting/application/usecase/CastVoteUseCaseTest.java": {
-    "mtime": 1788679234.9974027,
-    "seen": 1788681608.525167,
-    "ast_hash": "7029bb1d8c63b41d8bf66100d89fef22",
+    "mtime": 1788684696.7512898,
+    "seen": 1788686675.571701,
+    "ast_hash": "85bb9aa811465b123daad191baecdfb3",
     "semantic_hash": ""
   },
   "voting-benchmark/pom.xml": {
@@ -144,15 +144,15 @@
     "semantic_hash": ""
   },
   "voting-contracts/src/main/java/com/voting/contracts/VoteEventMapper.java": {
-    "mtime": 1788679170.333762,
-    "seen": 1788681608.5251882,
-    "ast_hash": "7c2337b209f335d0eab71f6764bb60d4",
+    "mtime": 1788682810.9841852,
+    "seen": 1788684047.874707,
+    "ast_hash": "bd85e14264fd78e27805806c37a87a05",
     "semantic_hash": ""
   },
   "voting-contracts/src/test/java/com/voting/contracts/VoteEventMapperTest.java": {
-    "mtime": 1788679170.3403583,
-    "seen": 1788681608.5251892,
-    "ast_hash": "d281ac62e23e34de9aea768d2d1707e6",
+    "mtime": 1788686608.514749,
+    "seen": 1788686675.5717351,
+    "ast_hash": "39ccdd39bfde182257d30d08ad3988bf",
     "semantic_hash": ""
   },
   "voting-domain/pom.xml": {
@@ -168,15 +168,15 @@
     "semantic_hash": ""
   },
   "voting-domain/src/main/java/com/voting/domain/ballot/RejectionReason.java": {
-    "mtime": 1788679420.6205075,
-    "seen": 1788681608.525194,
-    "ast_hash": "5a4bba2e3fbdbf361be35efaa7777c27",
+    "mtime": 1788684596.9436033,
+    "seen": 1788686675.571739,
+    "ast_hash": "782c017134f8b86118dc1f4ffd851d45",
     "semantic_hash": ""
   },
   "voting-domain/src/main/java/com/voting/domain/ballot/VoteAdmission.java": {
-    "mtime": 1788678978.2731912,
-    "seen": 1788681608.5251951,
-    "ast_hash": "122c164426931d6bd40597ac45ec7224",
+    "mtime": 1788684624.2861958,
+    "seen": 1788686675.57174,
+    "ast_hash": "6bfee3955908d8dfb0a60014ec502258",
     "semantic_hash": ""
   },
   "voting-domain/src/main/java/com/voting/domain/model/CandidateId.java": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "voting-domain/src/test/java/com/voting/domain/ballot/VoteAdmissionTest.java": {
-    "mtime": 1788679015.3970068,
-    "seen": 1788681608.5252118,
-    "ast_hash": "2b7d0b206180efc574168e2b43829099",
+    "mtime": 1788684648.9986188,
+    "seen": 1788686675.571764,
+    "ast_hash": "9225aac3ed78a0a2043a14b70274d23a",
     "semantic_hash": ""
   },
   "voting-domain/src/test/java/com/voting/domain/model/VoteTest.java": {
@@ -288,21 +288,21 @@
     "semantic_hash": ""
   },
   "voting-ingest-api/src/main/java/com/voting/ingest/IngestApiApplication.java": {
-    "mtime": 1788679677.870332,
-    "seen": 1788681608.525219,
-    "ast_hash": "67716536e9328c5a5be5a35caf4df433",
+    "mtime": 1788684954.9941204,
+    "seen": 1788686675.571776,
+    "ast_hash": "e7c75c5e7e3715d3d459851e97e5299f",
     "semantic_hash": ""
   },
   "voting-ingest-api/src/main/java/com/voting/ingest/config/VotingConfiguration.java": {
-    "mtime": 1788679677.8782258,
-    "seen": 1788681608.525221,
-    "ast_hash": "e88571e7d2ffc74f6562906fc02c0146",
+    "mtime": 1788684954.9122074,
+    "seen": 1788686675.571777,
+    "ast_hash": "9d05d1518552bf94631840a03c7b54fa",
     "semantic_hash": ""
   },
   "voting-ingest-api/src/main/java/com/voting/ingest/config/VotingProperties.java": {
-    "mtime": 1788679677.8744373,
-    "seen": 1788681608.5252218,
-    "ast_hash": "1c40afe0c66a7264a4be69b3df68a6d8",
+    "mtime": 1788684913.504796,
+    "seen": 1788686675.571779,
+    "ast_hash": "9d446a6cb9ba651c22cd2d95a66dae6d",
     "semantic_hash": ""
   },
   "voting-ingest-api/src/main/java/com/voting/ingest/kafka/EventPublicationException.java": {
@@ -312,9 +312,9 @@
     "semantic_hash": ""
   },
   "voting-ingest-api/src/main/java/com/voting/ingest/kafka/KafkaEventPublisher.java": {
-    "mtime": 1788679740.6963103,
-    "seen": 1788681608.525225,
-    "ast_hash": "3016dc093f196b1307bfda5a00489438",
+    "mtime": 1788684954.9946973,
+    "seen": 1788686675.5717828,
+    "ast_hash": "03ba3e8bafbf4fd5560eebd405cab430",
     "semantic_hash": ""
   },
   "voting-ingest-api/src/main/java/com/voting/ingest/kafka/KafkaReceiptPublisher.java": {
@@ -330,15 +330,15 @@
     "semantic_hash": ""
   },
   "voting-ingest-api/src/main/java/com/voting/ingest/web/ApiExceptionHandler.java": {
-    "mtime": 1788679740.751017,
-    "seen": 1788681608.525229,
-    "ast_hash": "92e403370007059bc18d20e6cbc23d06",
+    "mtime": 1788684954.912898,
+    "seen": 1788686675.571788,
+    "ast_hash": "d85681c10536c199549502befaca957c",
     "semantic_hash": ""
   },
   "voting-ingest-api/src/main/java/com/voting/ingest/web/CastVoteRequest.java": {
-    "mtime": 1788679726.2656553,
-    "seen": 1788681608.5252302,
-    "ast_hash": "52eddb4f302f6bb7ff6554e9555eb383",
+    "mtime": 1788684913.5041206,
+    "seen": 1788686675.571789,
+    "ast_hash": "84f555b0fd34f4e5173634ea3455b6ed",
     "semantic_hash": ""
   },
   "voting-ingest-api/src/main/java/com/voting/ingest/web/CastVoteResponse.java": {
@@ -354,9 +354,9 @@
     "semantic_hash": ""
   },
   "voting-ingest-api/src/test/java/com/voting/ingest/web/VoteControllerTest.java": {
-    "mtime": 1788679806.8726482,
-    "seen": 1788681608.525234,
-    "ast_hash": "47ae7137b9b5d186fd187030919eaa56",
+    "mtime": 1788685031.5314672,
+    "seen": 1788686675.571795,
+    "ast_hash": "fa3fc14b2b4335d64cb648fed346a70a",
     "semantic_hash": ""
   },
   "voting-streaming/pom.xml": {
@@ -366,21 +366,21 @@
     "semantic_hash": ""
   },
   "voting-streaming/src/main/java/com/voting/streaming/VoteAggregationJob.java": {
-    "mtime": 1788679563.087999,
-    "seen": 1788681608.525236,
-    "ast_hash": "802aa18669a520dd3a57ccc2d509497b",
+    "mtime": 1788684876.728077,
+    "seen": 1788686675.571817,
+    "ast_hash": "22e67084cbe81140914f3d765c9b4c4d",
     "semantic_hash": ""
   },
   "voting-streaming/src/main/java/com/voting/streaming/config/JobConfig.java": {
-    "mtime": 1788679503.4058695,
-    "seen": 1788681608.525238,
-    "ast_hash": "6fc5e77c489647ab457414dd1ec765a4",
+    "mtime": 1788684738.7040021,
+    "seen": 1788686675.571819,
+    "ast_hash": "2b2a3a2f19e865b046f5ab8a9bc38ecc",
     "semantic_hash": ""
   },
   "voting-streaming/src/main/java/com/voting/streaming/dedup/DedupProcessFunction.java": {
-    "mtime": 1788679453.9277668,
-    "seen": 1788681608.525239,
-    "ast_hash": "f2ddf3282b55a32d464c1a1ec96b7423",
+    "mtime": 1788684738.7056694,
+    "seen": 1788686675.57182,
+    "ast_hash": "6a976f72bb34b9cf1093b8b617916da6",
     "semantic_hash": ""
   },
   "voting-streaming/src/main/java/com/voting/streaming/serde/JsonDeserializationSchema.java": {
@@ -390,9 +390,9 @@
     "semantic_hash": ""
   },
   "voting-streaming/src/main/java/com/voting/streaming/serde/JsonTypeInfo.java": {
-    "mtime": 1788681767.0598686,
-    "seen": 1788681801.3139641,
-    "ast_hash": "eaea0d77cd874b69de04181e78a5d7d9",
+    "mtime": 1788684799.6888955,
+    "seen": 1788686675.571827,
+    "ast_hash": "e537558a5a137a79293820d44c65bb8b",
     "semantic_hash": ""
   },
   "voting-streaming/src/main/java/com/voting/streaming/serde/JsonTypeSerializer.java": {
@@ -420,27 +420,177 @@
     "semantic_hash": ""
   },
   "voting-streaming/src/test/java/com/voting/streaming/VoteAggregationPipelineTest.java": {
-    "mtime": 1788679630.61131,
-    "seen": 1788681608.525248,
-    "ast_hash": "31763adfa0821be1fe22bb9fed1906fb",
+    "mtime": 1788684828.9576416,
+    "seen": 1788686675.571834,
+    "ast_hash": "c1e0d13445353bfd5ab66c7735d9ee48",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1788681478.4205425,
-    "seen": 1788681608.525249,
-    "ast_hash": "9c3cfd02a40c7f73c5ed988387896383",
+    "mtime": 1788686928.0663323,
+    "seen": 1788686965.834604,
+    "ast_hash": "f02966218d5b4ff544dbc29f8ca3ab7e",
     "semantic_hash": ""
   },
   "infra/docker-compose.yml": {
-    "mtime": 1788680340.5715268,
-    "seen": 1788681608.52525,
-    "ast_hash": "064f3ffc7401c0c2a6e2bf99c8be6864",
+    "mtime": 1788685066.80448,
+    "seen": 1788686675.571837,
+    "ast_hash": "20b6b05db3ba3c30164eaee975d632fb",
     "semantic_hash": ""
   },
   "voting-ingest-api/src/main/resources/application.yml": {
-    "mtime": 1788679751.584741,
-    "seen": 1788681608.5252512,
-    "ast_hash": "e63905f7721e215d7fdd54d9715804f5",
+    "mtime": 1788685066.8038752,
+    "seen": 1788686675.571839,
+    "ast_hash": "81fae37e6755bde099835d24c281d02c",
+    "semantic_hash": ""
+  },
+  "voting-contracts/src/main/java/com/voting/contracts/AcceptedVoteEvent.java": {
+    "mtime": 1788682810.9194806,
+    "seen": 1788684047.8746681,
+    "ast_hash": "e9f03fc4c463ff82df2f94a756534eb6",
+    "semantic_hash": ""
+  },
+  "voting-contracts/src/main/java/com/voting/contracts/WindowMarkerEvent.java": {
+    "mtime": 1788682810.923119,
+    "seen": 1788684047.874709,
+    "ast_hash": "4e712d498d0c18535ca1bea65c7e167a",
+    "semantic_hash": ""
+  },
+  "voting-domain/src/main/java/com/voting/domain/window/VoteWindow.java": {
+    "mtime": 1788682786.4499292,
+    "seen": 1788684047.87474,
+    "ast_hash": "64225970e82ae82b8eb4ca9651c9c3ad",
+    "semantic_hash": ""
+  },
+  "voting-domain/src/test/java/com/voting/domain/window/VoteWindowTest.java": {
+    "mtime": 1788682786.4533815,
+    "seen": 1788684047.87475,
+    "ast_hash": "72ec9cfcf973c9b0cd140fa4f2bc73b4",
+    "semantic_hash": ""
+  },
+  "voting-merkle/cmd/merkle-service/main.go": {
+    "mtime": 1788683344.5768416,
+    "seen": 1788684047.874773,
+    "ast_hash": "bfd2be041d1035725713accadc4c525d",
+    "semantic_hash": ""
+  },
+  "voting-merkle/go.mod": {
+    "mtime": 1788683277.5377517,
+    "seen": 1788684047.874775,
+    "ast_hash": "5b22bb1ac40d9e9216630a93c5eb0298",
+    "semantic_hash": ""
+  },
+  "voting-merkle/internal/api/server.go": {
+    "mtime": 1788683344.570769,
+    "seen": 1788684047.8747761,
+    "ast_hash": "613d0a2e5fcda977849d4d45b108f205",
+    "semantic_hash": ""
+  },
+  "voting-merkle/internal/api/server_test.go": {
+    "mtime": 1788683413.3087542,
+    "seen": 1788684047.874778,
+    "ast_hash": "6a4fa4c8825ed2fecdc5c458949149af",
+    "semantic_hash": ""
+  },
+  "voting-merkle/internal/kafkaio/consumer.go": {
+    "mtime": 1788683264.7777407,
+    "seen": 1788684047.874779,
+    "ast_hash": "2ee549ad8686444d62afea4193c0173f",
+    "semantic_hash": ""
+  },
+  "voting-merkle/internal/kafkaio/publisher.go": {
+    "mtime": 1788683264.7813869,
+    "seen": 1788684047.87478,
+    "ast_hash": "bfcd439e4078e7dd4493c8f374dcf503",
+    "semantic_hash": ""
+  },
+  "voting-merkle/internal/voting/events.go": {
+    "mtime": 1788683230.4583104,
+    "seen": 1788684047.8747818,
+    "ast_hash": "f5a6839a462e9a7531c09d583f703f30",
+    "semantic_hash": ""
+  },
+  "voting-merkle/internal/voting/events_test.go": {
+    "mtime": 1788683374.166125,
+    "seen": 1788684047.874783,
+    "ast_hash": "315fef4e8ef62679d966b606754ff309",
+    "semantic_hash": ""
+  },
+  "voting-merkle/pkg/checkpoint/log.go": {
+    "mtime": 1788683143.704975,
+    "seen": 1788684047.8747861,
+    "ast_hash": "1169db1b17653bc0706c4f9e7353cb17",
+    "semantic_hash": ""
+  },
+  "voting-merkle/pkg/checkpoint/log_test.go": {
+    "mtime": 1788683182.9208024,
+    "seen": 1788684047.874788,
+    "ast_hash": "2ef303fe0a6504f6896f8c130115a218",
+    "semantic_hash": ""
+  },
+  "voting-merkle/pkg/merkle/proof.go": {
+    "mtime": 1788683050.918346,
+    "seen": 1788684047.8747892,
+    "ast_hash": "e2086fa7be14fa8b8c48f9112cb5fc87",
+    "semantic_hash": ""
+  },
+  "voting-merkle/pkg/merkle/tree.go": {
+    "mtime": 1788682945.787986,
+    "seen": 1788684047.87479,
+    "ast_hash": "0409940ecdbeb83b9d3b5e47eb1a037e",
+    "semantic_hash": ""
+  },
+  "voting-merkle/pkg/merkle/tree_test.go": {
+    "mtime": 1788683015.3764884,
+    "seen": 1788684047.874791,
+    "ast_hash": "96cde7335e4804c2a7bea684d8734b38",
+    "semantic_hash": ""
+  },
+  "voting-streaming/src/main/java/com/voting/streaming/merkle/WindowMarkerFunction.java": {
+    "mtime": 1788682843.5856373,
+    "seen": 1788684047.8748002,
+    "ast_hash": "a55c18cfa07c36657164e04663725a9d",
+    "semantic_hash": ""
+  },
+  "voting-contracts/src/main/java/com/voting/contracts/ControlEvent.java": {
+    "mtime": 1788686608.4656286,
+    "seen": 1788686675.571722,
+    "ast_hash": "ef7b7fa2d6b870796c8ecc97e8ce5c65",
+    "semantic_hash": ""
+  },
+  "voting-domain/src/main/java/com/voting/domain/election/ElectionClosedException.java": {
+    "mtime": 1788684596.8674521,
+    "seen": 1788686675.571742,
+    "ast_hash": "d9b07e87013365d5eb15dae1372a073b",
+    "semantic_hash": ""
+  },
+  "voting-domain/src/main/java/com/voting/domain/election/ElectionSchedule.java": {
+    "mtime": 1788684596.8641818,
+    "seen": 1788686675.571743,
+    "ast_hash": "c3308b7a638b22899bbf0df60c589280",
+    "semantic_hash": ""
+  },
+  "voting-domain/src/test/java/com/voting/domain/election/ElectionScheduleTest.java": {
+    "mtime": 1788684624.2925384,
+    "seen": 1788686675.571766,
+    "ast_hash": "07c633dcb3863e43e20e7a82118a3136",
+    "semantic_hash": ""
+  },
+  "voting-ingest-api/src/main/java/com/voting/ingest/kafka/ControlEventPublisher.java": {
+    "mtime": 1788684954.9234903,
+    "seen": 1788686675.5717802,
+    "ast_hash": "e0f1bf60003cf36b40a92feb55b2306d",
+    "semantic_hash": ""
+  },
+  "voting-ingest-api/src/test/java/com/voting/ingest/web/VoteControllerClosedElectionTest.java": {
+    "mtime": 1788685031.541613,
+    "seen": 1788686675.5717928,
+    "ast_hash": "af60cf6eb675c7fff17c58c8b65a5d35",
+    "semantic_hash": ""
+  },
+  "voting-streaming/src/main/java/com/voting/streaming/merkle/TimelineEvent.java": {
+    "mtime": 1788684876.7274761,
+    "seen": 1788686675.5718222,
+    "ast_hash": "c2614afbfdc73e3cdfd852a35daf9535",
     "semantic_hash": ""
   }
 }

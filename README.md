@@ -8,22 +8,41 @@ cidade e partido**.
 POST /api/v1/votes ──► ingest-api ──► [votes.cast] ──► Flink ──┬─► [results.by-candidate]
                             │                            │     ├─► [results.by-state]
                             │                          dedup   ├─► [results.by-city]
-                            └──► [votes.receipts]         │     └─► [results.by-party]
-                                                          └─────► [votes.rejected]
+                            └──► [votes.receipts]         │     ├─► [results.by-party]
+                                                          │     └─► [votes.rejected]
+                                                          │
+                                    [votes.accepted] ◄────┤
+                                    [votes.windows]  ◄────┘
+                                           │
+                                           ▼
+                                    merkle-service (Go) ──► [merkle.roots]
+                                           │
+                                           └──► GET /proof/{recibo}
 ```
+
+## Índice
+
+[Como rodar](#como-rodar) · [Arquitetura](#arquitetura) · [Tópicos](#tópicos) ·
+[Teste de carga](#teste-de-carga) · [Merkle Tree](#merkle-tree-e-prova-de-inclusão) ·
+[Garantias](#garantias) · [Privacidade do recibo](#nota-de-privacidade-sobre-o-recibo) ·
+[Encerramento](#encerramento-da-votação) ·
+[Marca d'água](#o-travamento-da-marca-dágua-e-por-que-heartbeats) ·
+[Próximas fases](#próximas-fases)
 
 ## Como rodar
 
-Requisitos: Docker e um JDK 17+ (`JAVA_HOME`; o `Makefile` usa `/opt/homebrew/opt/openjdk@21`
-por padrão — sobrescreva com `make JAVA_HOME=... `).
+Requisitos: Docker, um JDK 17+ e Go 1.24+. O `Makefile` usa `/opt/homebrew/opt/openjdk@21`
+por padrão — sobrescreva com `make JAVA_HOME=...`.
 
 ```bash
-make test        # 58 testes: domínio, contratos, caso de uso, pipeline Flink, API e base do benchmark
-make up          # Kafka (KRaft), Flink, API de ingestão e kafka-ui
+make test        # 120 testes (84 Java + 36 Go)
+make up          # Kafka (KRaft), Flink, API de ingestão, serviço Merkle e kafka-ui
 make submit      # submete o job de apuração
 make bench       # teste de carga com Gatling (10.000 votos, 10% duplicatas)
 make results     # placar corrente por candidato e por estado
 make rejected    # votos recusados
+make roots       # cadeia de raízes Merkle já seladas
+make proof RECEIPT=<hash>   # prova de inclusão de um recibo
 make down        # derruba tudo e apaga os dados
 ```
 
@@ -31,6 +50,7 @@ make down        # derruba tudo e apaga os dados
 |---|---|
 | API de ingestão | http://localhost:8081 |
 | Interface do Flink | http://localhost:8082 |
+| Serviço Merkle (provas) | http://localhost:8083 |
 | Kafka UI | http://localhost:8080 |
 | Kafka (do host) | `localhost:29092` |
 
@@ -60,6 +80,7 @@ Módulos Maven, do centro para a borda. A dependência só aponta para dentro:
 | `voting-ingest-api` | Adaptadores: REST de entrada, produtor Kafka de saída. |
 | `voting-streaming` | Adaptador Flink: fontes, sinks e funções finas que delegam ao domínio. |
 | `voting-benchmark` | Teste de carga com Gatling sobre uma base fixa de partidos, candidatos e municípios. |
+| `voting-merkle` | **Go.** Sela cada janela numa árvore de Merkle encadeada e serve provas de inclusão. |
 
 A regra que sustenta o desacoplamento: **`voting-domain/pom.xml` não declara nenhuma
 dependência externa** (só JUnit em teste). Se algo de infraestrutura precisar entrar ali, é
@@ -142,6 +163,101 @@ com timestamp. Sem isso, a segunda execução contra o mesmo cluster teria todos
 recusados — o dedup do Flink lembra dos eleitores da rodada anterior. Fixe com `-DrunId=...`
 apenas quando quiser exatamente esse cenário.
 
+## Merkle Tree e prova de inclusão
+
+O serviço `voting-merkle` (Go) sela cada janela de tempo numa árvore de Merkle **RFC 6962** —
+a mesma do Certificate Transparency — encadeada com a janela anterior. Com o recibo em mãos,
+o eleitor obtém uma prova de que seu voto entrou na apuração, e pode conferi-la **sem
+confiar no servidor**.
+
+```bash
+curl localhost:8083/proof/$RECIBO   # prova de inclusão + raiz da janela
+make roots                          # a cadeia de raízes já seladas
+```
+
+### Por que ele não lê `votes.receipts`
+
+Esta é a decisão central do desenho. `votes.receipts` recebe um registro por voto que **chega
+na API**, inclusive os que o Flink recusa depois. Uma árvore construída sobre aquele tópico
+daria prova de inclusão para votos que nunca foram contados — o oposto exato da garantia que
+ela existe para dar.
+
+A árvore come do fluxo **pós-dedup**: o Flink publica em `votes.accepted` apenas os votos
+admitidos. Verificado na prática: um voto duplicado aparece em `votes.receipts`, é recusado
+como `DUPLICATE_VOTE`, e o serviço responde `404 RECIBO_NAO_SELADO` para o recibo dele.
+
+`votes.accepted` também **não carrega o candidato**, pelo mesmo motivo que `votes.receipts`
+não carrega: é a base de uma consulta pública, e viraria um mapa de quem votou em quem.
+
+### Quem fecha a janela
+
+O Flink, e não o serviço Go. Ele já tem marca d'água por horário do voto e exactly-once —
+sabe dizer "a janela [T, T+n) fechou, não chega mais nada". Publica isso em `votes.windows`
+como `{windowId, count}`, e o serviço Go sela quando junta exatamente `count` folhas.
+
+Selar por **completude**, e não por timeout, é o que evita que um consumidor lento produza uma
+raiz divergente da apuração. E se a contagem não fecha, existe uma lacuna — que fica visível,
+em vez de virar uma árvore silenciosamente incompleta.
+
+`votes.windows` tem **uma partição só**, de propósito: a ordem dos marcadores é o que define a
+sequência da cadeia de raízes.
+
+### O que torna a raiz reproduzível
+
+Dentro de uma janela, as folhas são ordenadas pelo recibo antes de virar árvore. A raiz passa
+a ser função do *conjunto*, e não da ordem de chegada — que varia a cada execução, já que as
+folhas vêm de 6 partições em paralelo. Sem essa ordenação, nenhum auditor conseguiria
+recalcular a raiz.
+
+Cada checkpoint inclui o hash do anterior:
+
+```
+checkpoint_N = SHA-256(0x02 || checkpoint_{N-1} || raiz_N || windowId || tamanho)
+```
+
+Reescrever uma janela antiga muda todos os elos seguintes: a última raiz publicada compromete
+a história inteira.
+
+### Como o eleitor confere
+
+Com recibo, prova e raiz, a conta é a da RFC 6962 e cabe em vinte linhas em qualquer
+linguagem:
+
+```
+folha = SHA-256(0x00 || bytes(recibo))
+nó    = SHA-256(0x01 || esquerda || direita)
+```
+
+Os prefixos `0x00`/`0x01` não são decoração: sem eles, uma folha pode ser forjada para se
+passar por um nó interno (ataque de segunda pré-imagem). O `0x02` da cadeia existe pelo mesmo
+motivo, para que um elo não colida com um nó de árvore.
+
+Uma rodada real: 4 janelas seladas (12+7+7+7 folhas), prova conferida por um verificador
+independente escrito em Python — folha forjada rejeitada, caminho adulterado rejeitado, cadeia
+íntegra.
+
+### Estrutura do módulo Go
+
+O pedido era ser o mais agnóstico possível, então o núcleo não sabe o que é um voto:
+
+| Pacote | Sabe sobre |
+|---|---|
+| `pkg/merkle` | árvores e provas. **Zero dependências**, zero vocabulário de eleição. |
+| `pkg/checkpoint` | lotes de folhas opacas, selados e encadeados. Depende só de `pkg/merkle`. |
+| `internal/voting` | os eventos da votação e como viram folhas. |
+| `internal/kafkaio` | o único pacote que sabe que o transporte é Kafka. |
+| `internal/api` | HTTP. |
+
+### Limitação conhecida: sem persistência
+
+A cadeia vive **em memória**. Um restart relê os dois tópicos desde o início e reconstrói tudo
+— por isso o consumidor usa um grupo efêmero por processo, em vez de retomar de um offset
+salvo, que daria uma árvore com buracos.
+
+Funciona porque `merkle.roots` é compactado e guarda a cadeia publicada, mas não escala para
+uma eleição real: o tempo de partida cresce com o número de votos. Persistir folhas e
+checkpoints é o próximo passo natural.
+
 ## Garantias
 
 - **Um voto por eleitor** — estado por `voterId` no Flink. O segundo voto vai para
@@ -156,6 +272,21 @@ apenas quando quiser exatamente esse cenário.
 - **O voto só é confirmado depois do ack do Kafka** — a publicação na ingestão é síncrona,
   com `acks=all` e idempotência. Um `503` significa "o voto está bom, o sistema é que não
   conseguiu registrá-lo"; reenviar é seguro, porque a duplicata seria filtrada na apuração.
+- **Prova de inclusão auditável** — cada janela é selada numa árvore RFC 6962 com raiz
+  encadeada à anterior. O eleitor confere seu recibo sem confiar no servidor.
+- **O prazo é do servidor** — `castAt` é carimbado na chegada e não existe no contrato HTTP.
+  A autoridade sobre o encerramento é o Flink, não a borda.
+
+### Verificado na prática
+
+| Garantia | Evidência |
+|---|---|
+| Um voto por eleitor | 11.001 requisições, 10.000 eleitores → apuração fechou em 8.986 (os distintos), 1.014 recusas |
+| Exactly-once | `restart taskmanager` durante a carga: contagens não inflaram, estado do dedup preservado |
+| Prova de inclusão | verificador independente em Python: prova válida aceita, folha forjada e caminho adulterado rejeitados |
+| Duplicata sem prova | recibo do voto duplicado existe em `votes.receipts`, é recusado, e recebe `404` do serviço de prova |
+| Encerramento | voto injetado direto no Kafka com `castAt` após o prazo → `ELECTION_CLOSED` |
+| Janela sem tráfego | voto solitário selado em ~45s pelos heartbeats (antes: `404` indefinidamente) |
 
 ## Nota de privacidade sobre o recibo
 
@@ -175,12 +306,20 @@ candidato seria um mapa do voto de cada eleitor.
 
 ## Próximas fases
 
-1. **Merkle Tree por janela de tempo.** O recibo determinístico já é a folha da árvore, e as
-   marcas d'água por horário do voto já estão no job — falta a janela e a publicação da raiz.
-2. **Frontend de confirmação.** O eleitor consulta seu hash e vê se o voto entrou. O gancho é
-   `votes.receipts`, compactado e keyed pelo hash; falta um serviço de leitura sobre ele.
-3. **Agregação por janela antes de publicar.** Hoje cada voto emite uma atualização de
-   contagem — volumoso demais para uma eleição real. A mesma janela da Merkle Tree resolve.
+1. **Persistência da cadeia Merkle.** Ver a limitação conhecida acima: hoje a árvore vive em
+   memória e um restart relê tudo.
+2. **Frontend de confirmação.** O backend está pronto: `GET /proof/{recibo}` devolve prova e
+   raiz. Falta a tela onde o eleitor cola o hash — e, idealmente, que a verificação rode no
+   navegador dele, não no servidor.
+3. **Prova de consistência entre raízes** (`GET /consistency?from=N&to=M`), provando que uma
+   árvore é extensão da outra e que nada foi reescrito no meio.
+4. **Agregação por janela antes de publicar.** Hoje cada voto emite uma atualização de
+   contagem — volumoso demais para uma eleição real. A janela da Merkle Tree já existe e
+   resolve.
+5. **Tolerância de atraso no encerramento.** Hoje o prazo é estrito: vale o `castAt`
+   carimbado, sem folga. Um voto legítimo com latência alta na fronteira é recusado. A folga
+   seria um campo em `ElectionSchedule`, e precisa ser menor que o intervalo até a publicação
+   da raiz final.
 
 ## Notas de implementação
 
@@ -195,3 +334,82 @@ candidato seria um mapa do voto de cada eleitor.
 - A imagem do Flink é customizada (`infra/flink/Dockerfile`) apenas para que
   `/flink-checkpoints` pertença ao usuário `flink` — sem isso o volume nomeado nasce como root
   e o JobManager falha ao criar o checkpoint.
+
+## Encerramento da votação
+
+```bash
+VOTING_OPENS_AT=2026-10-04T11:00:00Z VOTING_CLOSES_AT=2026-10-04T20:00:00Z make up
+make submit JOB_ARGS="--bootstrap.servers kafka:9092 \
+  --election.opens.at 2026-10-04T11:00:00Z --election.closes.at 2026-10-04T20:00:00Z"
+```
+
+Sem as duas variáveis, a eleição não tem prazo — conveniente em desenvolvimento, e um erro de
+operação em produção.
+
+### O horário do voto é do servidor
+
+`castAt` **não existe no contrato HTTP**. O servidor carimba o momento da chegada e ignora
+qualquer campo que o cliente mande. Enviar `"castAt":"2026-10-04T12:00:00Z"` num POST depois do
+prazo continua devolvendo `403`.
+
+Não há como saber o instante do clique sem confiar no relógio do dispositivo, e confiar nele
+tornaria o encerramento contornável por antedatação. O preço é que o carimbo inclui a latência
+de rede — diferença sub-segundo, relevante apenas na fronteira do prazo.
+
+### Duas camadas, uma autoridade
+
+A API recusa com `403 VOTACAO_FECHADA` por cortesia, para o eleitor não receber um comprovante
+que a apuração vai descartar. **A autoridade é o Flink**, pelo mesmo motivo que já é para a
+unicidade: é o ponto único que vê todos os votos com um relógio só.
+
+Verificado injetando um voto direto no Kafka, driblando a API por completo, com `castAt` cinco
+segundos após o prazo — o Flink o recusou como `ELECTION_CLOSED` em `votes.rejected`.
+
+`ELECTION_NOT_OPEN` é um motivo separado de `ELECTION_CLOSED`: as duas situações pedem
+investigações diferentes — uma sugere relógio adiantado, a outra é o caso normal de quem votou
+tarde demais.
+
+## O travamento da marca d'água, e por que heartbeats
+
+Este foi o problema mais sutil do sistema, e vale registrar por inteiro.
+
+A marca d'água do Flink é derivada **do dado**: `forBoundedOutOfOrderness(5s)` emite
+`maior_castAt_visto - 5s`. Sem evento novo, não há novo máximo, e ela congela. A janela só
+dispara quando a marca d'água passa o fim dela — que nunca chega.
+
+Consequência medida antes da correção: **um voto solitário nunca era selado**. Noventa
+segundos, seis verificações, `404` em todas. O eleitor jamais receberia prova de inclusão. E
+isso acontecia justamente no momento mais crítico — a cauda de uma eleição, logo antes do
+encerramento.
+
+`withIdleness(30s)` **não resolve**, ao contrário do que o nome sugere: ele marca uma
+*partição* como ociosa para que ela não segure a marca d'água combinada das outras. Quando
+todas estão ociosas, a marca d'água simplesmente para.
+
+### A correção óbvia destruiria a auditoria
+
+O reflexo é usar `ProcessingTimeoutTrigger`, que dispara a janela por tempo de processamento.
+Funciona — e quebra a Merkle Tree. O conteúdo de cada janela passaria a depender do relógio de
+parede durante o processamento: dois reprocessamentos do mesmo log, em máquinas de velocidades
+diferentes, cortariam as janelas em pontos diferentes e produziriam **raízes diferentes**. Uma
+raiz que não é reproduzível não prova nada.
+
+### A correção: o tempo vira dado
+
+`votes.control` não traz votos, traz o tempo:
+
+- **Heartbeat** a cada poucos segundos, com o horário do servidor. Publicado pela API de
+  ingestão, porque é lá que mora o mesmo relógio que carimba os votos.
+- **Sentinela de encerramento**, uma vez, quando o prazo passa. Empurra a marca d'água além da
+  última janela e faz a raiz final ser publicada.
+
+Os dois entram no fluxo unidos aos votos, com marca d'água única, e são descartados logo depois
+do filtro — cumpriram seu papel só por terem existido no fluxo com um horário. Como tudo
+permanece em tempo de evento, o replay reproduz as mesmas janelas e as mesmas raízes.
+
+O intervalo do heartbeat precisa ser confortavelmente menor que a janela da Merkle Tree: é ele
+que faz uma janela sem votos fechar, e uma janela que não fecha é um grupo de eleitores sem
+prova de inclusão.
+
+Depois da correção, o mesmo voto solitário sela em ~45s (janela de 15s + marca d'água de 5s +
+heartbeat + checkpoint) e a prova responde `200`.

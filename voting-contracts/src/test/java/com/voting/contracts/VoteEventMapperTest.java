@@ -81,6 +81,24 @@ class VoteEventMapperTest {
         assertThat(wire).doesNotContain("cand-1").contains(receipt.hash());
     }
 
+    // Um acessor derivado chamado isXxx() faria o Jackson publicar um campo extra no
+    // contrato de fio - ou, se colidisse com um componente, corromper a desserializacao.
+    @Test
+    void oEventoDeControleNaoPublicaCamposDerivados() throws Exception {
+        String wire = json.writeValueAsString(ControlEvent.electionClosed("br-2026", T0));
+
+        assertThat(json.readValue(wire, java.util.Map.class))
+                .containsOnlyKeys("schemaVersion", "type", "electionId", "at");
+    }
+
+    @Test
+    void oEventoDeControleSobreviveAoRoundTrip() throws Exception {
+        ControlEvent batimento = ControlEvent.heartbeat("br-2026", T0);
+
+        assertThat(json.readValue(json.writeValueAsString(batimento), ControlEvent.class))
+                .isEqualTo(batimento);
+    }
+
     @Test
     void apuracaoViraEventoComDimensaoEContagem() {
         TallyUpdateEvent event = VoteEventMapper.toTallyEvent(

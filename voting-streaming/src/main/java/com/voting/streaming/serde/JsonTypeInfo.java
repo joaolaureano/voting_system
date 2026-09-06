@@ -1,8 +1,11 @@
 package com.voting.streaming.serde;
 
+import com.voting.contracts.AcceptedVoteEvent;
+import com.voting.contracts.ControlEvent;
 import com.voting.contracts.RejectedVoteEvent;
 import com.voting.contracts.TallyUpdateEvent;
 import com.voting.contracts.VoteCastEvent;
+import com.voting.contracts.WindowMarkerEvent;
 import java.util.Objects;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -21,6 +24,11 @@ public final class JsonTypeInfo<T> extends TypeInformation<T> {
     public static final TypeInformation<VoteCastEvent> VOTE_CAST = jsonOf(VoteCastEvent.class);
     public static final TypeInformation<RejectedVoteEvent> REJECTED = jsonOf(RejectedVoteEvent.class);
     public static final TypeInformation<TallyUpdateEvent> TALLY = jsonOf(TallyUpdateEvent.class);
+    public static final TypeInformation<AcceptedVoteEvent> ACCEPTED = jsonOf(AcceptedVoteEvent.class);
+    public static final TypeInformation<WindowMarkerEvent> WINDOW_MARKER = jsonOf(WindowMarkerEvent.class);
+    public static final TypeInformation<ControlEvent> CONTROL = jsonOf(ControlEvent.class);
+    public static final TypeInformation<com.voting.streaming.merkle.TimelineEvent> TIMELINE =
+            jsonOf(com.voting.streaming.merkle.TimelineEvent.class);
 
     private final Class<T> type;
 

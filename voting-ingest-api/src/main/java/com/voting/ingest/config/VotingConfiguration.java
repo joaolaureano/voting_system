@@ -3,6 +3,7 @@ package com.voting.ingest.config;
 import com.voting.application.port.ReceiptPublisher;
 import com.voting.application.port.VoteEventPublisher;
 import com.voting.application.usecase.CastVoteUseCase;
+import com.voting.domain.election.ElectionSchedule;
 import com.voting.domain.model.ElectionId;
 import com.voting.domain.receipt.ReceiptPolicy;
 import com.voting.domain.receipt.Sha256ReceiptPolicy;
@@ -29,6 +30,21 @@ public class VotingConfiguration {
         return ElectionId.of(properties.electionId());
     }
 
+    /**
+     * Periodo da votacao. Sem {@code voting.opens-at}/{@code voting.closes-at} a eleicao nao
+     * tem prazo - util em desenvolvimento, e um erro de operacao em producao.
+     */
+    @Bean
+    public ElectionSchedule electionSchedule(ElectionId electionId, VotingProperties properties) {
+        if (!properties.hasSchedule()) {
+            return ElectionSchedule.alwaysOpen(electionId);
+        }
+        return new ElectionSchedule(
+                electionId,
+                java.time.Instant.parse(properties.opensAt()),
+                java.time.Instant.parse(properties.closesAt()));
+    }
+
     @Bean
     public ReceiptPolicy receiptPolicy(VotingProperties properties) {
         return new Sha256ReceiptPolicy(properties.receiptPepper());
@@ -36,11 +52,11 @@ public class VotingConfiguration {
 
     @Bean
     public CastVoteUseCase castVoteUseCase(
-            ElectionId electionId,
+            ElectionSchedule schedule,
             ReceiptPolicy receiptPolicy,
             VoteEventPublisher votePublisher,
             ReceiptPublisher receiptPublisher,
             Clock clock) {
-        return new CastVoteUseCase(electionId, receiptPolicy, votePublisher, receiptPublisher, clock);
+        return new CastVoteUseCase(schedule, receiptPolicy, votePublisher, receiptPublisher, clock);
     }
 }

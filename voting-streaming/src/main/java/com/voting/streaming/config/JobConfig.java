@@ -18,6 +18,12 @@ public final class JobConfig implements Serializable {
     private final String bootstrapServers;
     private final String votesTopic;
     private final String rejectedTopic;
+    private final String acceptedTopic;
+    private final String windowsTopic;
+    private final String controlTopic;
+    private final String electionOpensAt;
+    private final String electionClosesAt;
+    private final long merkleWindowMs;
     private final String consumerGroup;
     private final String electionId;
     private final long checkpointIntervalMs;
@@ -30,6 +36,12 @@ public final class JobConfig implements Serializable {
         this.bootstrapServers = p.get("bootstrap.servers", "localhost:9092");
         this.votesTopic = p.get("topic.votes", "votes.cast");
         this.rejectedTopic = p.get("topic.rejected", "votes.rejected");
+        this.acceptedTopic = p.get("topic.accepted", "votes.accepted");
+        this.windowsTopic = p.get("topic.windows", "votes.windows");
+        this.controlTopic = p.get("topic.control", "votes.control");
+        this.electionOpensAt = p.get("election.opens.at", "");
+        this.electionClosesAt = p.get("election.closes.at", "");
+        this.merkleWindowMs = p.getLong("merkle.window.ms", 60_000L);
         this.consumerGroup = p.get("consumer.group", "voting-aggregation");
         this.electionId = p.get("election.id", "br-2026-presidencial");
         this.checkpointIntervalMs = p.getLong("checkpoint.interval.ms", 10_000L);
@@ -53,6 +65,40 @@ public final class JobConfig implements Serializable {
 
     public String rejectedTopic() {
         return rejectedTopic;
+    }
+
+    public String acceptedTopic() {
+        return acceptedTopic;
+    }
+
+    public String windowsTopic() {
+        return windowsTopic;
+    }
+
+    public String controlTopic() {
+        return controlTopic;
+    }
+
+    /**
+     * Periodo da eleicao. Sem os dois parametros, a eleicao nao tem prazo - conveniente em
+     * desenvolvimento, e um erro de operacao em producao.
+     */
+    public com.voting.domain.election.ElectionSchedule electionSchedule() {
+        com.voting.domain.model.ElectionId id = com.voting.domain.model.ElectionId.of(electionId);
+        if (electionOpensAt.isBlank() || electionClosesAt.isBlank()) {
+            return com.voting.domain.election.ElectionSchedule.alwaysOpen(id);
+        }
+        return new com.voting.domain.election.ElectionSchedule(
+                id, java.time.Instant.parse(electionOpensAt), java.time.Instant.parse(electionClosesAt));
+    }
+
+    /**
+     * Tamanho da janela que a Merkle Tree sela. Janelas curtas dao confirmacao mais rapida ao
+     * eleitor e arvores menores; janelas longas dao menos raizes para auditar. O servico Go
+     * nao precisa conhecer este valor - ele recebe o windowId pronto.
+     */
+    public java.time.Duration merkleWindow() {
+        return java.time.Duration.ofMillis(merkleWindowMs);
     }
 
     public String consumerGroup() {
@@ -98,6 +144,7 @@ public final class JobConfig implements Serializable {
         return "JobConfig{bootstrap=" + bootstrapServers
                 + ", votes=" + votesTopic
                 + ", election=" + electionId
+                + ", periodo=" + (electionOpensAt.isBlank() ? "sem prazo" : electionOpensAt + ".." + electionClosesAt)
                 + ", guarantee=" + deliveryGuarantee()
                 + ", parallelism=" + parallelism + '}';
     }

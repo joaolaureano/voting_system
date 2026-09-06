@@ -25,7 +25,15 @@ voting:
   receipt-pepper: ${VOTING_RECEIPT_PEPPER:pepper-de-desenvolvimento-trocar-em-producao}
   votes-topic: votes.cast
   receipts-topic: votes.receipts
+  control-topic: votes.control
   send-timeout-ms: 5000
+  # Periodo da votacao em ISO-8601. Vazio nos dois = eleicao sem prazo (so desenvolvimento).
+  opens-at: ${VOTING_OPENS_AT:}
+  closes-at: ${VOTING_CLOSES_AT:}
+  # Batimento que mantem o tempo de evento andando quando ninguem esta votando. Precisa ser
+  # confortavelmente menor que a janela da Merkle Tree, senao uma janela sem votos nao fecha
+  # e os eleitores dela ficam sem prova de inclusao.
+  heartbeat-interval-ms: ${VOTING_HEARTBEAT_MS:5000}
 
 management:
   endpoints:

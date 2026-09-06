@@ -12,7 +12,7 @@ import org.springframework.kafka.core.KafkaTemplate;
  * prometer ao eleitor que o voto entrou quando ele ainda pode se perder - exatamente o tipo
  * de mentira que um comprovante de voto nao pode conter.
  */
-abstract class KafkaEventPublisher {
+public abstract class KafkaEventPublisher {
 
     private final KafkaTemplate<String, String> kafka;
     private final long timeoutMs;

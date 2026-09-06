@@ -1,5 +1,6 @@
 package com.voting.ingest.web;
 
+import com.voting.domain.election.ElectionClosedException;
 import com.voting.ingest.kafka.EventPublicationException;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -14,8 +15,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  * Traducao de falhas para HTTP.
  *
  * <p>A distincao que importa para o eleitor: 400 significa "seu voto tem um problema, corrija";
- * 503 significa "o voto esta bom, o sistema e que nao conseguiu registra-lo - tente de novo".
- * Reenviar apos um 503 e seguro, porque a duplicata seria filtrada na apuracao.
+ * 403 significa "a votacao nao esta aberta, e nao ha o que corrigir"; 503 significa "o voto
+ * esta bom, o sistema e que nao conseguiu registra-lo - tente de novo". Reenviar apos um 503 e
+ * seguro, porque a duplicata seria filtrada na apuracao.
  */
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -32,6 +34,16 @@ public class ApiExceptionHandler {
                 .map(field -> field.getField() + ": " + field.getDefaultMessage())
                 .collect(Collectors.joining("; "));
         return ResponseEntity.badRequest().body(new ApiError("VOTO_INVALIDO", detalhes));
+    }
+
+    /**
+     * Recusa por prazo. A borda antecipa a resposta por cortesia; quem decide de verdade e o
+     * Flink, unico ponto que ve todos os votos com um relogio so.
+     */
+    @ExceptionHandler(ElectionClosedException.class)
+    public ResponseEntity<ApiError> electionClosed(ElectionClosedException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ApiError("VOTACAO_FECHADA", e.getMessage()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

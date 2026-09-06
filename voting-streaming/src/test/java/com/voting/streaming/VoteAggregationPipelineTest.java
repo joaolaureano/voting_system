@@ -2,11 +2,13 @@ package com.voting.streaming;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.voting.contracts.ControlEvent;
 import com.voting.contracts.RejectedVoteEvent;
 import com.voting.contracts.TallyUpdateEvent;
 import com.voting.contracts.VoteCastEvent;
 import com.voting.contracts.VoteEventMapper;
 import com.voting.domain.model.CandidateId;
+import com.voting.domain.election.ElectionSchedule;
 import com.voting.domain.model.ElectionId;
 import com.voting.domain.model.PartyId;
 import com.voting.domain.model.Region;
@@ -15,6 +17,7 @@ import com.voting.domain.model.VoterId;
 import com.voting.domain.receipt.ReceiptPolicy;
 import com.voting.domain.receipt.Sha256ReceiptPolicy;
 import com.voting.domain.tally.TallyDimension;
+import com.voting.streaming.merkle.TimelineEvent;
 import com.voting.streaming.serde.JsonTypeInfo;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,6 +39,8 @@ import org.junit.jupiter.api.Test;
 class VoteAggregationPipelineTest {
 
     private static final String ELECTION = "br-2026-presidencial";
+    private static final ElectionSchedule AGENDA =
+            ElectionSchedule.alwaysOpen(ElectionId.of(ELECTION));
     private static final Instant T0 = Instant.parse("2026-10-04T13:00:00Z");
     private static final ReceiptPolicy RECEIPTS = new Sha256ReceiptPolicy("pepper-de-teste");
 
@@ -75,7 +80,7 @@ class VoteAggregationPipelineTest {
                         voto("voter-3", "cand-2", "PT-B", "MG", "Belo Horizonte", 2))
                 .setParallelism(1);
 
-        SingleOutputStreamOperator<VoteCastEvent> admitidos = VoteAggregationJob.dedup(votos, ELECTION);
+        SingleOutputStreamOperator<VoteCastEvent> admitidos = VoteAggregationJob.dedup(votos, AGENDA);
         List<TallyUpdateEvent> apuracao = colher(VoteAggregationJob.tally(admitidos, TallyDimension.CANDIDATE));
 
         assertThat(contagemFinal(apuracao)).containsExactlyInAnyOrderEntriesOf(
@@ -92,7 +97,7 @@ class VoteAggregationPipelineTest {
                         voto("voter-2", "cand-2", "PT-B", "SP", "Sao Paulo", 2))
                 .setParallelism(1);
 
-        SingleOutputStreamOperator<VoteCastEvent> admitidos = VoteAggregationJob.dedup(votos, ELECTION);
+        SingleOutputStreamOperator<VoteCastEvent> admitidos = VoteAggregationJob.dedup(votos, AGENDA);
         List<TallyUpdateEvent> apuracao = colher(VoteAggregationJob.tally(admitidos, TallyDimension.CANDIDATE));
 
         assertThat(contagemFinal(apuracao)).containsExactlyInAnyOrderEntriesOf(
@@ -107,7 +112,7 @@ class VoteAggregationPipelineTest {
 
         SingleOutputStreamOperator<VoteCastEvent> admitidos =
                 VoteAggregationJob.dedup(env.fromData(JsonTypeInfo.VOTE_CAST, primeiro, duplicado)
-                        .setParallelism(1), ELECTION);
+                        .setParallelism(1), AGENDA);
 
         List<RejectedVoteEvent> rejeitados =
                 colher(admitidos.getSideOutput(com.voting.streaming.dedup.DedupProcessFunction.REJECTED));
@@ -127,7 +132,7 @@ class VoteAggregationPipelineTest {
                 T0, voto("voter-9", "cand-1", "PT-A", "SP", "Sao Paulo", 0).receipt());
 
         SingleOutputStreamOperator<VoteCastEvent> admitidos = VoteAggregationJob.dedup(
-                env.fromData(JsonTypeInfo.VOTE_CAST, deOutraEleicao).setParallelism(1), ELECTION);
+                env.fromData(JsonTypeInfo.VOTE_CAST, deOutraEleicao).setParallelism(1), AGENDA);
         List<RejectedVoteEvent> rejeitados =
                 colher(admitidos.getSideOutput(com.voting.streaming.dedup.DedupProcessFunction.REJECTED));
 
@@ -142,7 +147,7 @@ class VoteAggregationPipelineTest {
                 1, ELECTION, "voter-1", "cand-1", "PT-A", "SP", "  ", T0, "0".repeat(64));
 
         SingleOutputStreamOperator<VoteCastEvent> admitidos = VoteAggregationJob.dedup(
-                env.fromData(JsonTypeInfo.VOTE_CAST, semCidade).setParallelism(1), ELECTION);
+                env.fromData(JsonTypeInfo.VOTE_CAST, semCidade).setParallelism(1), AGENDA);
         List<RejectedVoteEvent> rejeitados =
                 colher(admitidos.getSideOutput(com.voting.streaming.dedup.DedupProcessFunction.REJECTED));
 
@@ -160,7 +165,7 @@ class VoteAggregationPipelineTest {
                 .setParallelism(1);
 
         List<TallyUpdateEvent> apuracao =
-                colher(VoteAggregationJob.tally(VoteAggregationJob.dedup(votos, ELECTION), TallyDimension.CITY));
+                colher(VoteAggregationJob.tally(VoteAggregationJob.dedup(votos, AGENDA), TallyDimension.CITY));
 
         assertThat(contagemFinal(apuracao)).containsExactlyInAnyOrderEntriesOf(
                 Map.of("MG/Bom Jesus", 1L, "RS/Bom Jesus", 1L));
@@ -176,10 +181,66 @@ class VoteAggregationPipelineTest {
                         voto("voter-3", "cand-3", "PT-B", "MG", "Uberlandia", 2))
                 .setParallelism(1);
 
-        SingleOutputStreamOperator<VoteCastEvent> admitidos = VoteAggregationJob.dedup(votos, ELECTION);
+        SingleOutputStreamOperator<VoteCastEvent> admitidos = VoteAggregationJob.dedup(votos, AGENDA);
 
         assertThat(contagemFinal(colher(VoteAggregationJob.tally(admitidos, TallyDimension.STATE))))
                 .containsExactlyInAnyOrderEntriesOf(Map.of("SP", 2L, "MG", 1L));
+    }
+
+    @Test
+    void votoDepoisDoEncerramentoNaoEntraNaApuracao() throws Exception {
+        StreamExecutionEnvironment env = env();
+        ElectionSchedule comPrazo = new ElectionSchedule(
+                ElectionId.of(ELECTION), T0.minusSeconds(60), T0.plusSeconds(30));
+
+        DataStream<VoteCastEvent> votos = env.fromData(
+                        JsonTypeInfo.VOTE_CAST,
+                        voto("voter-1", "cand-1", "PT-A", "SP", "Sao Paulo", 10),
+                        voto("voter-2", "cand-1", "PT-A", "SP", "Sao Paulo", 90))
+                .setParallelism(1);
+
+        SingleOutputStreamOperator<VoteCastEvent> admitidos = VoteAggregationJob.dedup(votos, comPrazo);
+        List<TallyUpdateEvent> apuracao =
+                colher(VoteAggregationJob.tally(admitidos, TallyDimension.CANDIDATE));
+
+        assertThat(contagemFinal(apuracao)).containsExactlyInAnyOrderEntriesOf(Map.of("cand-1", 1L));
+    }
+
+    @Test
+    void oVotoForaDoPrazoViraRejeicaoAuditavel() throws Exception {
+        StreamExecutionEnvironment env = env();
+        ElectionSchedule comPrazo = new ElectionSchedule(
+                ElectionId.of(ELECTION), T0.minusSeconds(60), T0.plusSeconds(30));
+
+        SingleOutputStreamOperator<VoteCastEvent> admitidos = VoteAggregationJob.dedup(
+                env.fromData(JsonTypeInfo.VOTE_CAST,
+                        voto("voter-2", "cand-1", "PT-A", "SP", "Sao Paulo", 90)).setParallelism(1),
+                comPrazo);
+
+        List<RejectedVoteEvent> rejeitados =
+                colher(admitidos.getSideOutput(com.voting.streaming.dedup.DedupProcessFunction.REJECTED));
+
+        assertThat(rejeitados).singleElement()
+                .satisfies(r -> assertThat(r.reason()).isEqualTo("ELECTION_CLOSED"));
+    }
+
+    // Os eventos de controle existem so para empurrar a marca d'agua; nao podem virar voto.
+    @Test
+    void osEventosDeControleNaoEntramNaApuracao() throws Exception {
+        StreamExecutionEnvironment env = env();
+        DataStream<TimelineEvent> linha = env.fromData(
+                        JsonTypeInfo.TIMELINE,
+                        TimelineEvent.ofVote(voto("voter-1", "cand-1", "PT-A", "SP", "Sao Paulo", 0)),
+                        TimelineEvent.ofControl(ControlEvent.heartbeat(ELECTION, T0.plusSeconds(1))),
+                        TimelineEvent.ofControl(ControlEvent.electionClosed(ELECTION, T0.plusSeconds(2))),
+                        TimelineEvent.ofVote(voto("voter-2", "cand-1", "PT-A", "SP", "Sao Paulo", 3)))
+                .setParallelism(1);
+
+        List<TallyUpdateEvent> apuracao = colher(VoteAggregationJob.tally(
+                VoteAggregationJob.dedup(VoteAggregationJob.apenasVotos(linha), AGENDA),
+                TallyDimension.CANDIDATE));
+
+        assertThat(contagemFinal(apuracao)).containsExactlyInAnyOrderEntriesOf(Map.of("cand-1", 2L));
     }
 
     /** Ultima contagem publicada de cada chave - o mesmo que um consumidor compactado veria. */

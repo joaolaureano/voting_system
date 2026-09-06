@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.voting.application.port.ReceiptPublisher;
 import com.voting.application.port.VoteEventPublisher;
+import com.voting.domain.election.ElectionClosedException;
+import com.voting.domain.election.ElectionSchedule;
 import com.voting.domain.model.ElectionId;
 import com.voting.domain.model.Vote;
 import com.voting.domain.receipt.ReceiptPolicy;
@@ -37,14 +39,14 @@ class CastVoteUseCaseTest {
     private final ReceiptPolicy receiptPolicy = new Sha256ReceiptPolicy("pepper-de-teste");
 
     private final CastVoteUseCase useCase = new CastVoteUseCase(
-            ELEICAO,
+            ElectionSchedule.alwaysOpen(ELEICAO),
             receiptPolicy,
             votePublisher,
             receiptPublisher,
             Clock.fixed(AGORA, ZoneOffset.UTC));
 
     private static CastVoteCommand comando() {
-        return new CastVoteCommand("br-2026-presidencial", "voter-1", "cand-1", "PT-A", "sp", "Sao Paulo", null);
+        return new CastVoteCommand("br-2026-presidencial", "voter-1", "cand-1", "PT-A", "sp", "Sao Paulo");
     }
 
     @Test
@@ -63,8 +65,10 @@ class CastVoteUseCaseTest {
         assertThat(ordemDeEfeitos).containsExactly("voto", "recibo");
     }
 
+    // O horario e sempre o do servidor: nao existe campo para o cliente informar o seu. Com
+    // prazo de encerramento, aceitar o horario do cliente permitiria antedatar um voto.
     @Test
-    void carimbaOHorarioDoServidorQuandoOClienteNaoInforma() {
+    void carimbaSempreOHorarioDoServidor() {
         CastVoteResult result = useCase.execute(comando());
 
         assertThat(result.vote().castAt()).isEqualTo(AGORA);
@@ -82,7 +86,7 @@ class CastVoteUseCaseTest {
     @Test
     void assumeAEleicaoConfiguradaQuandoOClienteOmite() {
         CastVoteCommand semEleicao =
-                new CastVoteCommand(null, "voter-1", "cand-1", "PT-A", "SP", "Sao Paulo", null);
+                new CastVoteCommand(null, "voter-1", "cand-1", "PT-A", "SP", "Sao Paulo");
 
         assertThat(useCase.execute(semEleicao).vote().electionId()).isEqualTo(ELEICAO);
     }
@@ -90,7 +94,7 @@ class CastVoteUseCaseTest {
     @Test
     void recusaVotoDeOutraEleicao() {
         CastVoteCommand outra =
-                new CastVoteCommand("br-2030-presidencial", "voter-1", "cand-1", "PT-A", "SP", "Sao Paulo", null);
+                new CastVoteCommand("br-2030-presidencial", "voter-1", "cand-1", "PT-A", "SP", "Sao Paulo");
 
         assertThatThrownBy(() -> useCase.execute(outra)).isInstanceOf(IllegalArgumentException.class);
         assertThat(votosPublicados).isEmpty();
@@ -99,7 +103,7 @@ class CastVoteUseCaseTest {
     @Test
     void naoPublicaNadaQuandoOVotoEInvalido() {
         CastVoteCommand semCandidato =
-                new CastVoteCommand(null, "voter-1", " ", "PT-A", "SP", "Sao Paulo", null);
+                new CastVoteCommand(null, "voter-1", " ", "PT-A", "SP", "Sao Paulo");
 
         assertThatThrownBy(() -> useCase.execute(semCandidato)).isInstanceOf(IllegalArgumentException.class);
         assertThat(votosPublicados).isEmpty();
@@ -107,10 +111,35 @@ class CastVoteUseCaseTest {
     }
 
     @Test
-    void recusaVotoComHorarioNoFuturo() {
-        CastVoteCommand futuro = new CastVoteCommand(
-                null, "voter-1", "cand-1", "PT-A", "SP", "Sao Paulo", AGORA.plusSeconds(3600));
+    void recusaVotoDepoisDoEncerramento() {
+        CastVoteUseCase encerrada = new CastVoteUseCase(
+                new ElectionSchedule(ELEICAO, AGORA.minusSeconds(3600), AGORA),
+                receiptPolicy, votePublisher, receiptPublisher, Clock.fixed(AGORA, ZoneOffset.UTC));
 
-        assertThatThrownBy(() -> useCase.execute(futuro)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> encerrada.execute(comando()))
+                .isInstanceOf(ElectionClosedException.class)
+                .hasMessageContaining("encerrou em");
+        assertThat(votosPublicados).isEmpty();
+    }
+
+    @Test
+    void recusaVotoAntesDaAbertura() {
+        CastVoteUseCase aindaFechada = new CastVoteUseCase(
+                new ElectionSchedule(ELEICAO, AGORA.plusSeconds(60), AGORA.plusSeconds(3600)),
+                receiptPolicy, votePublisher, receiptPublisher, Clock.fixed(AGORA, ZoneOffset.UTC));
+
+        assertThatThrownBy(() -> aindaFechada.execute(comando()))
+                .isInstanceOf(ElectionClosedException.class)
+                .hasMessageContaining("abre em");
+        assertThat(votosPublicados).isEmpty();
+    }
+
+    @Test
+    void oUltimoMilissegundoAntesDoPrazoAindaVale() {
+        CastVoteUseCase noLimite = new CastVoteUseCase(
+                new ElectionSchedule(ELEICAO, AGORA.minusSeconds(3600), AGORA.plusMillis(1)),
+                receiptPolicy, votePublisher, receiptPublisher, Clock.fixed(AGORA, ZoneOffset.UTC));
+
+        assertThat(noLimite.execute(comando()).receiptHash()).matches("[0-9a-f]{64}");
     }
 }

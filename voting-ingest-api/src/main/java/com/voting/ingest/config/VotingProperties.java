@@ -12,6 +12,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param votesTopic    topico dos votos aceitos, consumido pela apuracao
  * @param receiptsTopic topico dos comprovantes, consultado pelo eleitor
  * @param sendTimeoutMs quanto esperar pelo ack do Kafka antes de responder erro
+ * @param controlTopic  topico dos eventos de controle que empurram a marca d'agua do Flink
+ * @param opensAt       inicio da votacao em ISO-8601; vazio significa sem prazo
+ * @param closesAt      fim da votacao em ISO-8601; vazio significa sem prazo
  */
 @ConfigurationProperties(prefix = "voting")
 public record VotingProperties(
@@ -19,7 +22,10 @@ public record VotingProperties(
         String receiptPepper,
         String votesTopic,
         String receiptsTopic,
-        long sendTimeoutMs) {
+        long sendTimeoutMs,
+        String controlTopic,
+        String opensAt,
+        String closesAt) {
 
     public VotingProperties {
         if (receiptPepper == null || receiptPepper.isBlank()) {
@@ -35,5 +41,23 @@ public record VotingProperties(
         if (sendTimeoutMs <= 0) {
             sendTimeoutMs = 5_000L;
         }
+        if (controlTopic == null || controlTopic.isBlank()) {
+            controlTopic = "votes.control";
+        }
+        if (opensAt == null) {
+            opensAt = "";
+        }
+        if (closesAt == null) {
+            closesAt = "";
+        }
+        if (opensAt.isBlank() != closesAt.isBlank()) {
+            throw new IllegalStateException(
+                    "informe voting.opens-at e voting.closes-at juntos, ou nenhum dos dois");
+        }
+    }
+
+    /** True quando a eleicao tem periodo definido. */
+    public boolean hasSchedule() {
+        return !opensAt.isBlank();
     }
 }

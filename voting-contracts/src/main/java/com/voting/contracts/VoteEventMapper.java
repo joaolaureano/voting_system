@@ -9,6 +9,8 @@ import com.voting.domain.model.Vote;
 import com.voting.domain.model.VoterId;
 import com.voting.domain.receipt.VoteReceipt;
 import com.voting.domain.tally.VoteTally;
+import com.voting.domain.window.VoteWindow;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -76,6 +78,22 @@ public final class VoteEventMapper {
                 rejection.reason().name(),
                 original == null ? null : original.hash(),
                 rejectedAt);
+    }
+
+    /**
+     * Converte um voto admitido no evento que alimenta a Merkle Tree.
+     *
+     * <p>A janela sai do {@code castAt}, e nao do relogio: e o que faz duas reprocessagens do
+     * mesmo log cairem nas mesmas janelas.
+     */
+    public static AcceptedVoteEvent toAcceptedEvent(VoteCastEvent event, Duration tamanhoDaJanela) {
+        Objects.requireNonNull(event, "event");
+        return new AcceptedVoteEvent(
+                AcceptedVoteEvent.CURRENT_SCHEMA_VERSION,
+                event.receipt(),
+                event.voterId(),
+                VoteWindow.containing(event.castAt(), tamanhoDaJanela).id(),
+                event.castAt());
     }
 
     public static TallyUpdateEvent toTallyEvent(VoteTally tally) {
