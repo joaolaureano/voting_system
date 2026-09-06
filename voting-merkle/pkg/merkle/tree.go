@@ -14,7 +14,6 @@ package merkle
 import (
 	"crypto/sha256"
 	"errors"
-	"math/bits"
 )
 
 const (
@@ -50,51 +49,88 @@ func HashNode(left, right []byte) []byte {
 // A ordem das folhas faz parte da definicao da arvore: duas ordens diferentes das mesmas
 // folhas dao raizes diferentes. Quem constroi a arvore e responsavel por impor uma ordem
 // canonica se quiser que a raiz seja reproduzivel.
+//
+// Os nos internos sao materializados na construcao, e nao recalculados a cada prova. Guardar
+// so as folhas custaria O(n) hashes por prova - num lote de 100 mil votos, 14 ms e cem mil
+// alocacoes para responder a um unico eleitor. Com os niveis em memoria, a prova e um passeio
+// de O(log n) leituras, sem hash nenhum. O preco e dobrar a memoria da arvore (2n hashes em
+// vez de n), o que para 100 mil folhas sao 6 MB.
 type Tree struct {
-	leaves [][]byte // ja hasheadas com HashLeaf
-	root   []byte
+	// levels[0] sao as folhas ja hasheadas; cada nivel seguinte tem metade dos nos,
+	// arredondando para cima; o ultimo nivel tem so a raiz.
+	levels [][][]byte
 }
 
 // New constroi a arvore a partir das folhas brutas, na ordem dada.
 func New(leaves [][]byte) *Tree {
-	hashed := make([][]byte, len(leaves))
-	for i, leaf := range leaves {
-		hashed[i] = HashLeaf(leaf)
-	}
-	return &Tree{leaves: hashed, root: root(hashed)}
+	return &Tree{levels: buildLevels(leaves)}
 }
 
 // Size e o numero de folhas.
-func (t *Tree) Size() int { return len(t.leaves) }
+func (t *Tree) Size() int {
+	if len(t.levels) == 0 {
+		return 0
+	}
+	return len(t.levels[0])
+}
 
 // Root devolve a raiz. Para a arvore vazia, e SHA-256 da string vazia, como manda a RFC.
 func (t *Tree) Root() []byte {
-	out := make([]byte, len(t.root))
-	copy(out, t.root)
+	if len(t.levels) == 0 {
+		empty := sha256.Sum256(nil)
+		return empty[:]
+	}
+	topo := t.levels[len(t.levels)-1][0]
+	out := make([]byte, len(topo))
+	copy(out, topo)
 	return out
 }
 
-// root implementa MTH(D[n]) da RFC 6962.
-func root(hashed [][]byte) []byte {
-	switch len(hashed) {
-	case 0:
-		empty := sha256.Sum256(nil)
-		return empty[:]
-	case 1:
-		return hashed[0]
-	default:
-		k := splitPoint(len(hashed))
-		return HashNode(root(hashed[:k]), root(hashed[k:]))
-	}
-}
-
-// splitPoint devolve a maior potencia de dois estritamente menor que n.
+// buildLevels emparelha os nos de baixo para cima, promovendo o ultimo no sem par.
 //
-// E este split - e nao a divisao ao meio - que faz a arvore ser append-only: acrescentar
-// folhas nunca reescreve as subarvores ja fechadas a esquerda.
-func splitPoint(n int) int {
-	if n < 2 {
-		return 0
+// Isso e equivalente ao MTH(D[n]) da RFC 6962, que divide a sequencia na maior potencia de
+// dois menor que n: a promocao do no impar reproduz exatamente essa divisao, sem precisar
+// calcular o ponto de corte em cada nivel. E o que torna a arvore append-only - as subarvores
+// fechadas a esquerda nunca sao reescritas.
+//
+// O hasher e reaproveitado e cada nivel sai de um unico buffer: sem isso, construir um lote
+// de 100 mil folhas faria 200 mil alocacoes so para os digests.
+func buildLevels(leaves [][]byte) [][][]byte {
+	n := len(leaves)
+	if n == 0 {
+		return nil
 	}
-	return 1 << (bits.Len(uint(n-1)) - 1)
+
+	h := sha256.New()
+	nivel := make([][]byte, n)
+	buf := make([]byte, n*HashSize)
+	for i, folha := range leaves {
+		h.Reset()
+		h.Write([]byte{leafPrefix})
+		h.Write(folha)
+		nivel[i] = h.Sum(buf[i*HashSize : i*HashSize : (i+1)*HashSize])
+	}
+
+	levels := [][][]byte{nivel}
+	for len(nivel) > 1 {
+		acima := make([][]byte, (len(nivel)+1)/2)
+		buf := make([]byte, len(acima)*HashSize)
+		for i, j := 0, 0; i < len(nivel); i, j = i+2, j+1 {
+			if i+1 == len(nivel) {
+				// No sem par sobe intacto: nao existe "duplicar o ultimo" na RFC 6962,
+				// e duplicar abriria o ataque de forjar uma arvore de tamanho diferente
+				// com a mesma raiz.
+				acima[j] = nivel[i]
+				continue
+			}
+			h.Reset()
+			h.Write([]byte{nodePrefix})
+			h.Write(nivel[i])
+			h.Write(nivel[i+1])
+			acima[j] = h.Sum(buf[j*HashSize : j*HashSize : (j+1)*HashSize])
+		}
+		levels = append(levels, acima)
+		nivel = acima
+	}
+	return levels
 }

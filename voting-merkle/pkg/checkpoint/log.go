@@ -134,6 +134,13 @@ func (l *Log) Add(batchID string, leaf Leaf) ([]*Checkpoint, error) {
 		copy(dados, leaf.Data)
 		lote.leaves[leaf.Key] = dados
 	}
+
+	// Acrescentar uma folha so pode ter completado *este* lote. Se ele ainda nao fechou,
+	// nenhum outro mudou de estado desde o ultimo drain, e varrer a fila seria desperdicio.
+	// Sem essa guarda, uma janela de 100 mil votos faz 100 mil varreduras para nada.
+	if !lote.marked || len(lote.leaves) < lote.expected {
+		return nil, nil
+	}
 	return l.drain(), nil
 }
 
@@ -165,6 +172,12 @@ func (l *Log) Expect(batchID string, count int) ([]*Checkpoint, error) {
 	lote.marked = true
 	lote.expected = count
 	l.queue = append(l.queue, batchID)
+
+	// Idem: marcar um lote so pode ter completado ele proprio. Um lote sem folhas
+	// (count zero) fecha aqui mesmo.
+	if len(lote.leaves) < count {
+		return nil, nil
+	}
 	return l.drain(), nil
 }
 

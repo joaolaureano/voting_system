@@ -1,8 +1,8 @@
 {
-  "0": "Vote",
+  "0": "VoteEventMapper.java",
   "1": "JsonTypeInfo",
   "2": "JobConfig",
-  "3": "VoteFeeder",
+  "3": "DatasetTest.java",
   "4": "com.fasterxml.jackson.databind.ObjectMapper",
   "5": "org.junit.jupiter.api.Test",
   "6": "VotingProperties",
@@ -22,14 +22,16 @@
   "20": "voting-streaming",
   "21": "github.com/joaolaureano/voting_system/voting-merkle",
   "22": "CastVoteUseCase",
-  "23": "VoteReceipt",
+  "23": "Vote",
   "24": ".voto",
   "25": "VoteAggregationJob.java",
   "26": "TallyUpdateEvent",
   "27": "TallyDimension",
-  "28": "VoteCastEvent",
-  "29": "TimelineEvent",
-  "30": ".toDomain",
+  "28": "DedupProcessFunction",
+  "29": "VoteCastEvent",
+  "30": "VoteEventMapper",
   "31": "VoteControllerClosedElectionTest.java",
-  "32": "Sha256ReceiptPolicy"
+  "32": ".of",
+  "33": "ElectionSchedule",
+  "34": "VoteSimulation"
 }

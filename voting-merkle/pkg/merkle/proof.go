@@ -13,23 +13,28 @@ type Proof struct {
 }
 
 // Prove devolve a prova de inclusao da folha na posicao index.
+//
+// Sobe pelos niveis ja materializados juntando o irmao de cada no. Nao calcula hash nenhum:
+// tudo de que precisa foi computado uma vez, na construcao da arvore.
+//
+// Quando um no nao tem irmao naquele nivel - o ultimo no de um nivel de tamanho impar - ele
+// sobe intacto e nao contribui com nada para o caminho.
 func (t *Tree) Prove(index int) (Proof, error) {
-	if index < 0 || index >= len(t.leaves) {
+	n := t.Size()
+	if index < 0 || index >= n {
 		return Proof{}, ErrIndexOutOfRange
 	}
-	return Proof{Index: index, Size: len(t.leaves), Path: path(index, t.leaves)}, nil
-}
 
-// path implementa PATH(m, D[n]) da RFC 6962.
-func path(m int, hashed [][]byte) [][]byte {
-	if len(hashed) <= 1 {
-		return nil
+	caminho := make([][]byte, 0, len(t.levels))
+	idx := index
+	for nivel := 0; nivel < len(t.levels)-1; nivel++ {
+		nos := t.levels[nivel]
+		if irmao := idx ^ 1; irmao < len(nos) {
+			caminho = append(caminho, nos[irmao])
+		}
+		idx >>= 1
 	}
-	k := splitPoint(len(hashed))
-	if m < k {
-		return append(path(m, hashed[:k]), root(hashed[k:]))
-	}
-	return append(path(m-k, hashed[k:]), root(hashed[:k]))
+	return Proof{Index: index, Size: n, Path: caminho}, nil
 }
 
 // Verify confere que leaf esta na posicao Index de uma arvore de Size folhas cuja raiz e root.

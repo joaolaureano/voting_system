@@ -1,24 +1,24 @@
 # Graph Report - voting_system  (2026-09-06)
 
 ## Corpus Check
-- 97 files · ~26,084 words
+- 99 files · ~27,207 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 699 nodes · 1895 edges · 33 communities (19 shown, 14 thin omitted)
-- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 134 edges (avg confidence: 0.82)
+- 708 nodes · 1912 edges · 35 communities (25 shown, 10 thin omitted)
+- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 138 edges (avg confidence: 0.82)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `066e5ba8`
+- Built from commit: `79a2f6a6`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- Vote
+- VoteEventMapper.java
 - JsonTypeInfo
 - JobConfig
-- VoteFeeder
+- DatasetTest.java
 - com.fasterxml.jackson.databind.ObjectMapper
 - org.junit.jupiter.api.Test
 - VotingProperties
@@ -38,16 +38,18 @@
 - voting-streaming
 - github.com/joaolaureano/voting_system/voting-merkle
 - CastVoteUseCase
-- VoteReceipt
+- Vote
 - .voto
 - VoteAggregationJob.java
 - TallyUpdateEvent
 - TallyDimension
+- DedupProcessFunction
 - VoteCastEvent
-- TimelineEvent
-- .toDomain
+- VoteEventMapper
 - VoteControllerClosedElectionTest.java
-- Sha256ReceiptPolicy
+- .of
+- ElectionSchedule
+- VoteSimulation
 
 ## God Nodes (most connected - your core abstractions)
 1. `ElectionSchedule` - 47 edges
@@ -59,7 +61,7 @@
 7. `ElectionId` - 24 edges
 8. `CastVoteUseCase` - 20 edges
 9. `Log` - 20 edges
-10. `CastVoteUseCaseTest` - 19 edges
+10. `NewLog()` - 20 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `KafkaReceiptPublisher` --implements--> `ReceiptPublisher`  [EXTRACTED]
@@ -76,35 +78,39 @@
 ## Import Cycles
 - None detected.
 
-## Communities (33 total, 14 thin omitted)
+## Communities (35 total, 10 thin omitted)
 
-### Community 0 - "Vote"
-Cohesion: 0.15
-Nodes (11): CandidateId, Override, ElectionId, Override, Override, PartyId, Region, Vote (+3 more)
+### Community 0 - "VoteEventMapper.java"
+Cohesion: 0.12
+Nodes (8): CandidateId, Override, Override, PartyId, Region, Override, VoterId, VoteWindow
+
+### Community 1 - "JsonTypeInfo"
+Cohesion: 0.22
+Nodes (3): org.apache.flink.api.common.ExecutionConfig, Override, JsonTypeInfo
 
 ### Community 2 - "JobConfig"
 Cohesion: 0.11
-Nodes (9): org.apache.flink.api.java.utils.ParameterTool, org.apache.flink.connector.base.DeliveryGuarantee, org.apache.flink.connector.kafka.sink.KafkaSink, org.apache.flink.streaming.api.datastream.DataStream, org.apache.flink.streaming.api.environment.StreamExecutionEnvironment, Override, JobConfig, TypeInformation (+1 more)
+Nodes (10): org.apache.flink.api.java.utils.ParameterTool, org.apache.flink.connector.base.DeliveryGuarantee, org.apache.flink.connector.kafka.sink.KafkaSink, org.apache.flink.connector.kafka.source.KafkaSource, org.apache.flink.streaming.api.datastream.DataStream, org.apache.flink.streaming.api.environment.StreamExecutionEnvironment, Override, JobConfig (+2 more)
 
-### Community 3 - "VoteFeeder"
-Cohesion: 0.07
-Nodes (14): io.gatling.javaapi.core.ScenarioBuilder, io.gatling.javaapi.core.Simulation, io.gatling.javaapi.http.HttpProtocolBuilder, Candidato, CandidatosGenerator, Dataset, Municipio, Partido (+6 more)
+### Community 3 - "DatasetTest.java"
+Cohesion: 0.15
+Nodes (6): Candidato, CandidatosGenerator, Dataset, Municipio, Partido, DatasetTest
 
 ### Community 4 - "com.fasterxml.jackson.databind.ObjectMapper"
 Cohesion: 0.07
 Nodes (25): ClassLoader, com.fasterxml.jackson.databind.ObjectMapper, InitializationContext, KafkaSinkContext, org.apache.flink.api.common.serialization.DeserializationSchema, org.apache.flink.api.common.typeinfo.TypeInformation, org.apache.flink.api.common.typeutils.TypeSerializer, org.apache.flink.api.common.typeutils.TypeSerializerSnapshot (+17 more)
 
 ### Community 5 - "org.junit.jupiter.api.Test"
-Cohesion: 0.05
-Nodes (24): org.junit.jupiter.api.Test, org.junit.jupiter.params.ParameterizedTest, org.junit.jupiter.params.provider.CsvSource, VoteControllerTest.PortasEmMemoria, CastVoteCommand, CastVoteUseCaseTest, Rejected, RejectionReason (+16 more)
+Cohesion: 0.07
+Nodes (10): org.junit.jupiter.api.Test, VoteControllerTest.PortasEmMemoria, CastVoteCommand, CastVoteUseCaseTest, Override, VoteFeeder, VoteFeederTest, ElectionScheduleTest (+2 more)
 
 ### Community 6 - "VotingProperties"
-Cohesion: 0.15
-Nodes (6): org.springframework.boot.context.properties.ConfigurationProperties, org.springframework.kafka.core.KafkaTemplate, org.springframework.scheduling.annotation.Scheduled, VotingProperties, ControlEventPublisher, KafkaEventPublisher
+Cohesion: 0.17
+Nodes (10): org.springframework.boot.context.properties.ConfigurationProperties, org.springframework.kafka.core.KafkaTemplate, org.springframework.scheduling.annotation.Scheduled, org.springframework.stereotype.Component, VotingProperties, ControlEventPublisher, KafkaEventPublisher, KafkaReceiptPublisher (+2 more)
 
 ### Community 7 - "testing.T"
-Cohesion: 0.07
-Nodes (66): pending, net/http/httptest.ResponseRecorder, sync.RWMutex, testing.T, NewServer(), cadeiaComJanelas(), contains(), get() (+58 more)
+Cohesion: 0.06
+Nodes (72): pending, net/http/httptest.ResponseRecorder, sync.RWMutex, testing.B, testing.T, NewServer(), cadeiaComJanelas(), contains() (+64 more)
 
 ### Community 8 - "org.slf4j.Logger"
 Cohesion: 0.12
@@ -120,59 +126,79 @@ Nodes (12): context.Context, log/slog.Logger, time.Duration, kafka.Reader, kafka
 
 ### Community 11 - "Sistema de Votação em Tempo Real — Kafka + Flink"
 Cohesion: 0.07
-Nodes (27): A base fixa, A correção: o tempo vira dado, A correção óbvia destruiria a auditoria, Arquitetura, Como o eleitor confere, Como rodar, Duas camadas, uma autoridade, Encerramento da votação (+19 more)
+Nodes (28): A base fixa, A correção: o tempo vira dado, A correção óbvia destruiria a auditoria, Arquitetura, Como o eleitor confere, Como rodar, Desempenho, Duas camadas, uma autoridade (+20 more)
 
 ### Community 12 - "IngestApiApplication"
 Cohesion: 0.53
 Nodes (4): org.springframework.boot.autoconfigure.SpringBootApplication, org.springframework.boot.context.properties.ConfigurationPropertiesScan, org.springframework.scheduling.annotation.EnableScheduling, IngestApiApplication
 
 ### Community 22 - "CastVoteUseCase"
-Cohesion: 0.21
+Cohesion: 0.22
 Nodes (10): FunctionalInterface, org.springframework.context.annotation.Bean, org.springframework.context.annotation.Configuration, ReceiptPublisher, VoteEventPublisher, CastVoteUseCase, ReceiptPolicy, VotingConfiguration (+2 more)
 
-### Community 23 - "VoteReceipt"
-Cohesion: 0.09
-Nodes (13): java.util.regex.Pattern, org.springframework.stereotype.Component, ReceiptEvent, VoteEventMapper, VoteEventMapperTest, Accepted, AdmissionDecision, Override (+5 more)
+### Community 23 - "Vote"
+Cohesion: 0.13
+Nodes (7): java.util.regex.Pattern, ReceiptEvent, Vote, Override, VoteReceipt, keyOf(), Override
+
+### Community 24 - ".voto"
+Cohesion: 0.21
+Nodes (3): org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator, VoteTest, VoteAggregationPipelineTest
 
 ### Community 25 - "VoteAggregationJob.java"
-Cohesion: 0.20
-Nodes (10): org.apache.flink.api.common.ExecutionConfig, org.apache.flink.connector.kafka.source.KafkaSource, org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction, org.apache.flink.streaming.api.windowing.windows.TimeWindow, AcceptedVoteEvent, RejectedVoteEvent, WindowMarkerEvent, Context (+2 more)
+Cohesion: 0.23
+Nodes (8): org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction, org.apache.flink.streaming.api.windowing.windows.TimeWindow, AcceptedVoteEvent, RejectedVoteEvent, WindowMarkerEvent, Context, Override, WindowMarkerFunction
 
 ### Community 26 - "TallyUpdateEvent"
-Cohesion: 0.20
-Nodes (8): org.apache.flink.api.common.state.ValueState, org.apache.flink.configuration.Configuration, org.apache.flink.streaming.api.functions.KeyedProcessFunction, TallyUpdateEvent, VoteTally, Context, Override, TallyProcessFunction
+Cohesion: 0.21
+Nodes (7): org.apache.flink.api.common.state.ValueState, org.apache.flink.streaming.api.functions.KeyedProcessFunction, TallyUpdateEvent, VoteTally, Context, Override, TallyProcessFunction
 
 ### Community 27 - "TallyDimension"
 Cohesion: 0.21
 Nodes (8): org.apache.flink.api.java.functions.KeySelector, TallyDimension, CANDIDATE, CITY, PARTY, STATE, DimensionKeySelector, Override
 
-### Community 28 - "VoteCastEvent"
-Cohesion: 0.27
-Nodes (6): org.apache.flink.util.OutputTag, VoteCastEvent, DedupProcessFunction, Context, Counter, Override
+### Community 28 - "DedupProcessFunction"
+Cohesion: 0.23
+Nodes (6): org.apache.flink.configuration.Configuration, org.apache.flink.util.OutputTag, DedupProcessFunction, Context, Counter, Override
+
+### Community 29 - "VoteCastEvent"
+Cohesion: 0.29
+Nodes (3): ControlEvent, VoteCastEvent, TimelineEvent
 
 ### Community 31 - "VoteControllerClosedElectionTest.java"
-Cohesion: 0.31
-Nodes (6): org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest, org.springframework.boot.test.context.TestConfiguration, org.springframework.context.annotation.Import, org.springframework.test.web.servlet.MockMvc, VoteControllerClosedElectionTest.VotacaoEncerrada, VoteControllerClosedElectionTest
+Cohesion: 0.24
+Nodes (8): org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest, org.springframework.boot.test.context.TestConfiguration, org.springframework.context.annotation.Import, org.springframework.test.web.servlet.MockMvc, VoteControllerClosedElectionTest.VotacaoEncerrada, Override, Sha256ReceiptPolicy, VoteControllerClosedElectionTest
+
+### Community 32 - ".of"
+Cohesion: 0.11
+Nodes (16): org.junit.jupiter.params.ParameterizedTest, org.junit.jupiter.params.provider.CsvSource, Accepted, AdmissionDecision, Rejected, RejectionReason, DUPLICATE_VOTE, ELECTION_CLOSED (+8 more)
+
+### Community 33 - "ElectionSchedule"
+Cohesion: 0.21
+Nodes (4): ElectionClosedException, ElectionSchedule, ElectionId, Override
+
+### Community 34 - "VoteSimulation"
+Cohesion: 0.36
+Nodes (5): io.gatling.javaapi.core.ScenarioBuilder, io.gatling.javaapi.core.Simulation, io.gatling.javaapi.http.HttpProtocolBuilder, Override, VoteSimulation
 
 ## Knowledge Gaps
-- **39 isolated node(s):** `com.voting:voting-system`, `voting-application`, `voting-benchmark`, `voting-contracts`, `voting-domain` (+34 more)
+- **40 isolated node(s):** `com.voting:voting-system`, `voting-application`, `voting-benchmark`, `voting-contracts`, `voting-domain` (+35 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **14 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **10 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `ElectionSchedule` connect `org.junit.jupiter.api.Test` to `Vote`, `JobConfig`, `VotingProperties`, `CastVoteUseCase`, `VoteReceipt`, `.voto`, `VoteAggregationJob.java`, `VoteCastEvent`, `VoteControllerClosedElectionTest.java`?**
-  _High betweenness centrality (0.068) - this node is a cross-community bridge._
-- **Why does `Vote` connect `Vote` to `Sha256ReceiptPolicy`, `org.junit.jupiter.api.Test`, `org.slf4j.Logger`, `CastVoteUseCase`, `VoteReceipt`, `.voto`, `TallyDimension`, `.toDomain`, `VoteControllerClosedElectionTest.java`?**
-  _High betweenness centrality (0.054) - this node is a cross-community bridge._
-- **Why does `VoteCastEvent` connect `VoteCastEvent` to `Vote`, `JsonTypeInfo`, `JobConfig`, `VoteReceipt`, `.voto`, `VoteAggregationJob.java`, `TallyUpdateEvent`, `TallyDimension`, `TimelineEvent`, `.toDomain`?**
-  _High betweenness centrality (0.037) - this node is a cross-community bridge._
+- **Why does `ElectionSchedule` connect `ElectionSchedule` to `.of`, `JobConfig`, `org.junit.jupiter.api.Test`, `VotingProperties`, `CastVoteUseCase`, `Vote`, `.voto`, `VoteAggregationJob.java`, `DedupProcessFunction`, `VoteControllerClosedElectionTest.java`?**
+  _High betweenness centrality (0.067) - this node is a cross-community bridge._
+- **Why does `Vote` connect `Vote` to `VoteEventMapper.java`, `ElectionSchedule`, `.of`, `org.junit.jupiter.api.Test`, `VotingProperties`, `org.slf4j.Logger`, `CastVoteUseCase`, `.voto`, `VoteAggregationJob.java`, `TallyDimension`, `VoteEventMapper`, `VoteControllerClosedElectionTest.java`?**
+  _High betweenness centrality (0.052) - this node is a cross-community bridge._
+- **Why does `VoteCastEvent` connect `VoteCastEvent` to `JsonTypeInfo`, `JobConfig`, `ElectionSchedule`, `.voto`, `VoteAggregationJob.java`, `TallyUpdateEvent`, `TallyDimension`, `DedupProcessFunction`, `VoteEventMapper`?**
+  _High betweenness centrality (0.036) - this node is a cross-community bridge._
 - **Are the 4 inferred relationships involving `ElectionSchedule` (e.g. with `.oUltimoMilissegundoAntesDoPrazoAindaVale()` and `.recusaVotoAntesDaAbertura()`) actually correct?**
   _`ElectionSchedule` has 4 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `com.voting:voting-system`, `voting-application`, `voting-benchmark` to the rest of the system?**
-  _39 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _40 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `VoteEventMapper.java` be split into smaller, more focused modules?**
+  _Cohesion score 0.12105263157894737 - nodes in this community are weakly interconnected._
 - **Should `JobConfig` be split into smaller, more focused modules?**
   _Cohesion score 0.10897435897435898 - nodes in this community are weakly interconnected._
-- **Should `VoteFeeder` be split into smaller, more focused modules?**
-  _Cohesion score 0.07337526205450734 - nodes in this community are weakly interconnected._

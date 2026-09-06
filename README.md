@@ -248,6 +248,32 @@ O pedido era ser o mais agnóstico possível, então o núcleo não sabe o que �
 | `internal/kafkaio` | o único pacote que sabe que o transporte é Kafka. |
 | `internal/api` | HTTP. |
 
+### Desempenho
+
+```bash
+cd voting-merkle && go test ./pkg/... -run '^$' -bench . -benchtime 200x
+```
+
+Os benchmarks cobrem os dois caminhos que importam: selar uma janela (`New`, `Seal`) e servir
+uma prova (`Prove`, `Lookup`), em lotes de 1 mil a 100 mil folhas.
+
+Medido com profadvisor, em capturas adjacentes (as duas medições em sequência, sob a mesma
+carga de máquina — capturas separadas no tempo variaram até 33% em código idêntico), num lote
+de 100 mil folhas:
+
+| | antes | depois | alocações |
+|---|---|---|---|
+| `Prove` | 14,86 ms | **226 ns** | 99.988 → 1 |
+| `New` | 24,99 ms | **20,58 ms** | 200.001 → 42 |
+
+A `Tree` guardava apenas as folhas e a raiz, então **cada prova reconstruía os nós internos do
+zero** — O(n) hashes para responder a um único eleitor. Materializando os níveis na construção,
+a prova virou um passeio de O(log n) leituras, sem hash nenhum. O custo é dobrar a memória da
+árvore (2n hashes em vez de n): 6 MB para 100 mil folhas.
+
+O ganho em `New` vem de reaproveitar o hasher e alocar um buffer por nível, em vez de um digest
+por nó.
+
 ### Limitação conhecida: sem persistência
 
 A cadeia vive **em memória**. Um restart relê os dois tópicos desde o início e reconstrói tudo
