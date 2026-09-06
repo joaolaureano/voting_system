@@ -1,0 +1,180 @@
+/* Sem framework: a folha inteira cabe numa leitura, e nada aqui chega de fora da origem. */
+
+:root {
+  color-scheme: light dark;
+
+  --fundo: #f6f7f9;
+  --superficie: #ffffff;
+  --borda: #dfe3e8;
+  --texto: #16191d;
+  --texto-fraco: #5b636d;
+  --acento: #1f5fd1;
+  --ok: #17683a;
+  --ok-fundo: #e8f5ed;
+  --falha: #a12020;
+  --falha-fundo: #fceceb;
+  --pendente: #7a5300;
+  --pendente-fundo: #fdf3e0;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #101215;
+    --superficie: #181b20;
+    --borda: #2b3039;
+    --texto: #e8eaed;
+    --texto-fraco: #9aa3ad;
+    --acento: #6ea3ff;
+    --ok: #6bd598;
+    --ok-fundo: #10281c;
+    --falha: #ff9c94;
+    --falha-fundo: #2a1514;
+    --pendente: #e8c06a;
+    --pendente-fundo: #262013;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 2.5rem 1.25rem 4rem;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.topo, main, .rodape { max-width: 46rem; margin-inline: auto; }
+
+.topo h1 { margin: 0 0 0.5rem; font-size: 1.75rem; letter-spacing: -0.02em; }
+
+.subtitulo { margin: 0 0 2rem; color: var(--texto-fraco); max-width: 40rem; }
+
+.cartao {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.cabecalho-secao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+h2 { margin: 0; font-size: 1.05rem; letter-spacing: -0.01em; }
+
+label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.4rem; }
+
+.linha-campo { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+input[type="text"] {
+  flex: 1 1 22rem;
+  min-width: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: var(--mono);
+  font-size: 0.9rem;
+}
+
+input[type="text"]:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+
+button {
+  padding: 0.65rem 1.1rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--acento);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.secundario {
+  background: transparent;
+  color: var(--acento);
+  border-color: var(--borda);
+  font-size: 0.9rem;
+  padding: 0.45rem 0.85rem;
+}
+
+button:disabled { opacity: 0.55; cursor: progress; }
+
+.ajuda { color: var(--texto-fraco); font-size: 0.875rem; margin: 0.6rem 0 0; }
+
+code { font-family: var(--mono); font-size: 0.85em; }
+
+/* Veredito ------------------------------------------------------------------ */
+
+.veredito { border-radius: 10px; padding: 1rem 1.1rem; border: 1px solid transparent; }
+.veredito h2 { margin-bottom: 0.4rem; }
+.veredito p { margin: 0.4rem 0 0; font-size: 0.925rem; }
+.veredito.ok { background: var(--ok-fundo); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
+.veredito.ok h2 { color: var(--ok); }
+.veredito.falha { background: var(--falha-fundo); border-color: color-mix(in srgb, var(--falha) 35%, transparent); }
+.veredito.falha h2 { color: var(--falha); }
+.veredito.pendente { background: var(--pendente-fundo); border-color: color-mix(in srgb, var(--pendente) 35%, transparent); }
+.veredito.pendente h2 { color: var(--pendente); }
+
+/* Detalhes ------------------------------------------------------------------ */
+
+.detalhes {
+  display: grid;
+  grid-template-columns: minmax(9rem, max-content) 1fr;
+  gap: 0.35rem 1rem;
+  margin: 1.1rem 0 0;
+  font-size: 0.9rem;
+}
+
+.detalhes dt { color: var(--texto-fraco); }
+.detalhes dd { margin: 0; min-width: 0; }
+.detalhes dd.hash { font-family: var(--mono); font-size: 0.78rem; }
+
+.copiar {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: copy;
+  word-break: break-all;
+}
+
+.copiar:hover { color: var(--acento); }
+.copiar.copiado { color: var(--ok); }
+
+/* Ressalva ------------------------------------------------------------------ */
+
+.ressalva { margin-top: 1.1rem; border-top: 1px solid var(--borda); padding-top: 0.85rem; }
+.ressalva summary { cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+.ressalva p { margin: 0.7rem 0 0; font-size: 0.9rem; color: var(--texto-fraco); }
+
+/* Cadeia -------------------------------------------------------------------- */
+
+.cadeia { list-style: none; margin: 1.1rem 0 0; padding: 0; }
+
+.cadeia li {
+  border-left: 2px solid var(--borda);
+  padding: 0.5rem 0 0.5rem 0.9rem;
+  margin-left: 0.35rem;
+}
+
+.cadeia li.quebrado { border-left-color: var(--falha); }
+.cadeia li.quebrado .janela { color: var(--falha); font-weight: 600; }
+.cadeia .janela { font-size: 0.9rem; }
+.cadeia .hash { font-family: var(--mono); font-size: 0.72rem; color: var(--texto-fraco); }
+
+/* Rodape -------------------------------------------------------------------- */
+
+.rodape { margin-top: 2rem; color: var(--texto-fraco); font-size: 0.85rem; }
+.rodape a { color: var(--acento); }
+.rodape code { display: inline-block; }

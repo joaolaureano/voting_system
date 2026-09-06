@@ -114,6 +114,15 @@ services:
       # eleicao inteira.
       - merkle-data:/var/lib/merkle
 
+  web:
+    build:
+      context: ../voting-web
+    container_name: voting-web
+    depends_on:
+      - merkle
+    ports:
+      - "8084:8084"
+
   jobmanager:
     build:
       context: flink

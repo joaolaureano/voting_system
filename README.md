@@ -17,13 +17,16 @@ POST /api/v1/votes ──► ingest-api ──► [votes.cast] ──► Flink �
                                            ▼
                                     merkle-service (Go) ──► [merkle.roots]
                                            │
-                                           └──► GET /proof/{recibo}
+                                           └──► GET /proof/{recibo} ◄── voting-web
+                                                                       (verifica no
+                                                                        navegador)
 ```
 
 ## Índice
 
 [Como rodar](#como-rodar) · [Arquitetura](#arquitetura) · [Tópicos](#tópicos) ·
 [Teste de carga](#teste-de-carga) · [Merkle Tree](#merkle-tree-e-prova-de-inclusão) ·
+[A tela do eleitor](#a-tela-do-eleitor) · [Persistência](#persistência-o-diário-da-cadeia) ·
 [Garantias](#garantias) · [Privacidade do recibo](#nota-de-privacidade-sobre-o-recibo) ·
 [Encerramento](#encerramento-da-votação) ·
 [Marca d'água](#o-travamento-da-marca-dágua-e-por-que-heartbeats) ·
@@ -31,23 +34,26 @@ POST /api/v1/votes ──► ingest-api ──► [votes.cast] ──► Flink �
 
 ## Como rodar
 
-Requisitos: Docker, um JDK 17+ e Go 1.24+. O `Makefile` usa `/opt/homebrew/opt/openjdk@21`
-por padrão — sobrescreva com `make JAVA_HOME=...`.
+Requisitos: Docker, um JDK 17+, Go 1.24+ e Node 20+ (só para `make test-web`; a página em si
+não tem build). O `Makefile` usa `/opt/homebrew/opt/openjdk@21` por padrão — sobrescreva com
+`make JAVA_HOME=...`.
 
 ```bash
-make test        # 120 testes (84 Java + 36 Go)
-make up          # Kafka (KRaft), Flink, API de ingestão, serviço Merkle e kafka-ui
+make test        # 157 testes (89 Java + 53 Go + 15 do verificador do navegador)
+make up          # Kafka (KRaft), Flink, API de ingestão, serviço Merkle, a tela e o kafka-ui
 make submit      # submete o job de apuração
 make bench       # teste de carga com Gatling (10.000 votos, 10% duplicatas)
 make results     # placar corrente por candidato e por estado
 make rejected    # votos recusados
 make roots       # cadeia de raízes Merkle já seladas
 make proof RECEIPT=<hash>   # prova de inclusão de um recibo
+make chain       # estado da cadeia: identidade do diário, cabeça e janelas abertas
 make down        # derruba tudo e apaga os dados
 ```
 
 | Serviço | Endereço |
 |---|---|
+| Confirmação do voto (a tela) | http://localhost:8084 |
 | API de ingestão | http://localhost:8081 |
 | Interface do Flink | http://localhost:8082 |
 | Serviço Merkle (provas) | http://localhost:8083 |
@@ -70,7 +76,8 @@ conferir o desfecho depois.
 
 ## Arquitetura
 
-Módulos Maven, do centro para a borda. A dependência só aponta para dentro:
+Módulos Maven — mais dois que não são Java —, do centro para a borda. A dependência só aponta
+para dentro:
 
 | Módulo | Papel |
 |---|---|
@@ -81,6 +88,7 @@ Módulos Maven, do centro para a borda. A dependência só aponta para dentro:
 | `voting-streaming` | Adaptador Flink: fontes, sinks e funções finas que delegam ao domínio. |
 | `voting-benchmark` | Teste de carga com Gatling sobre uma base fixa de partidos, candidatos e municípios. |
 | `voting-merkle` | **Go.** Sela cada janela numa árvore de Merkle encadeada e serve provas de inclusão. |
+| `voting-web` | **HTML e JavaScript, sem build.** A tela onde o eleitor confere o recibo — a verificação roda no navegador dele. |
 
 A regra que sustenta o desacoplamento: **`voting-domain/pom.xml` não declara nenhuma
 dependência externa** (só JUnit em teste). Se algo de infraestrutura precisar entrar ali, é
@@ -102,6 +110,10 @@ Duas consequências concretas disso no código:
 | `votes.cast` | `voterId` | 6 partições |
 | `votes.rejected` | `voterId` | duplicatas e votos inválidos, auditáveis |
 | `votes.receipts` | hash do recibo | compactado |
+| `votes.accepted` | `voterId` | 6 partições; o fluxo pós-dedup, base da árvore |
+| `votes.control` | — | 1 partição; os batimentos que destravam a marca d'água |
+| `votes.windows` | `windowId` | **1 partição**; a ordem dos marcadores define a cadeia |
+| `merkle.roots` | `windowId` | compactado; a cadeia de raízes publicada |
 | `results.by-candidate` / `-state` / `-city` / `-party` | valor da dimensão | compactado |
 
 A chave de `votes.cast` **não é decorativa**: é o que coloca todos os votos de um eleitor na
@@ -236,6 +248,44 @@ Uma rodada real: 4 janelas seladas (12+7+7+7 folhas), prova conferida por um ver
 independente escrito em Python — folha forjada rejeitada, caminho adulterado rejeitado, cadeia
 íntegra.
 
+### A tela do eleitor
+
+`voting-web` é a página onde o comprovante é conferido — e o ponto dela é que a **verificação
+roda no navegador do eleitor**, não no servidor.
+
+```bash
+make up   # http://localhost:8084
+```
+
+O serviço Go entrega recibo, prova e raiz. Quem refaz a conta da RFC 6962 e decide se ela
+fecha é `voting-web/public/verify.js`, na máquina de quem perguntou. Um servidor que quisesse
+mentir teria de forjar SHA-256.
+
+Não há build, framework nem CDN: quatro arquivos servidos por nginx, sem bundler nem
+minificação. Isso não é minimalismo por gosto — é o que permite afirmar que o código auditado
+é o código executado. O nginx também encaminha `/api` para o serviço Go, para que a página não
+dependa de CORS configurado do outro lado.
+
+Os testes (`make test-web`, sem `npm install` — não há dependência) **não** conferem o
+verificador contra ele mesmo: os vetores saem de `pkg/checkpoint`, a implementação em Go. Uma
+segunda implementação do mesmo algoritmo só vale se for confrontada com a primeira. Além das
+provas válidas, cobrem folha forjada, caminho adulterado, raiz de outra janela, caminho mais
+longo e mais curto que a árvore, índice fora dela, e uma janela reescrita no meio da cadeia.
+
+O que só existe no navegador tem sua própria verificação, à parte porque precisa de
+dependência (`cd voting-web && npm run test:browser`, com Playwright e Chrome): sobe um stub
+com o contrato de `/proof` e `/roots` e dirige o Chrome pela página. A verificação que
+justifica esse arquivo é a de **servidor desonesto** — o stub devolve uma prova adulterada, e
+a tela tem de rejeitá-la na máquina do eleitor.
+
+A tela também se recusa a dizer o que não sabe. Um recibo sem prova tem três explicações —
+janela ainda aberta, voto recusado por duplicidade, recibo inexistente — e ela diz as três, em
+vez de deixar o eleitor concluir a pior. E o veredito positivo vem com a ressalva que fecha o
+raciocínio: prova e raiz vieram do mesmo servidor, então a conta prova inclusão *naquela*
+raiz; confirmar que é a raiz publicada é comparar o hash do checkpoint com o de `merkle.roots`
+ou com o de outro observador. O botão de conferir a cadeia refaz todos os elos, do genesis à
+última raiz, e aponta a janela exata onde ela quebraria.
+
 ### Estrutura do módulo Go
 
 O pedido era ser o mais agnóstico possível, então o núcleo não sabe o que é um voto:
@@ -253,14 +303,19 @@ O pedido era ser o mais agnóstico possível, então o núcleo não sabe o que �
 `pkg/checkpoint` define a interface `Store` e não sabe o que há do outro lado — um arquivo,
 um banco, um teste em memória. Continua dependendo só de `pkg/merkle`.
 
+Há ainda `cmd/vetores`, uma ferramenta de desenvolvimento: emite os vetores de teste que o
+verificador do navegador consome (`make web-vetores`). Existe para que a implementação em
+JavaScript seja confrontada com esta, e não consigo mesma.
+
 ### Desempenho
 
 ```bash
 cd voting-merkle && go test ./pkg/... -run '^$' -bench . -benchtime 200x
 ```
 
-Os benchmarks cobrem os dois caminhos que importam: selar uma janela (`New`, `Seal`) e servir
-uma prova (`Prove`, `Lookup`), em lotes de 1 mil a 100 mil folhas.
+Os benchmarks cobrem os caminhos que importam: selar uma janela (`New`, `Seal`), servir uma
+prova (`Prove`, `Lookup`) e gravar e retomar a cadeia (`Append`, `Sync`, `Restore`), em lotes
+de 1 mil a 100 mil folhas. Os números da persistência estão na seção dela, mais abaixo.
 
 Medido com profadvisor, em capturas adjacentes, num lote de 100 mil folhas:
 
@@ -411,6 +466,12 @@ direto do disco é outro trabalho, e outra escolha de desempenho.
 | Duplicata sem prova | recibo do voto duplicado existe em `votes.receipts`, é recusado, e recebe `404` do serviço de prova |
 | Encerramento | voto injetado direto no Kafka com `castAt` após o prazo → `ELECTION_CLOSED` |
 | Janela sem tráfego | voto solitário selado em ~45s pelos heartbeats (antes: `404` indefinidamente) |
+| Verificação no navegador | 14 verificações num Chrome real (`npm run test:browser`): prova adulterada **pelo servidor** rejeitada na máquina do eleitor, cadeia reescrita apontada na janela certa |
+| Retomada da cadeia | testes de `pkg/journal`: raízes, elos e provas reconstruídos do disco; uma folha adulterada no arquivo impede a partida |
+
+As duas últimas linhas foram verificadas fora do cluster — a primeira contra um stub com o
+contrato de `/proof` e `/roots`, a segunda no nível dos pacotes. O restart do serviço Merkle
+contra o cluster de pé (`make restart-merkle`) ainda não foi exercitado numa rodada real.
 
 ## Nota de privacidade sobre o recibo
 
@@ -433,15 +494,12 @@ candidato seria um mapa do voto de cada eleitor.
 1. **Provas servidas do disco.** A persistência resolveu o tempo de partida, não a memória:
    as árvores continuam inteiras em RAM. Um índice de folha para posição em disco tiraria o
    teto de votos por processo.
-2. **Frontend de confirmação.** O backend está pronto: `GET /proof/{recibo}` devolve prova e
-   raiz. Falta a tela onde o eleitor cola o hash — e, idealmente, que a verificação rode no
-   navegador dele, não no servidor.
-3. **Prova de consistência entre raízes** (`GET /consistency?from=N&to=M`), provando que uma
+2. **Prova de consistência entre raízes** (`GET /consistency?from=N&to=M`), provando que uma
    árvore é extensão da outra e que nada foi reescrito no meio.
-4. **Agregação por janela antes de publicar.** Hoje cada voto emite uma atualização de
+3. **Agregação por janela antes de publicar.** Hoje cada voto emite uma atualização de
    contagem — volumoso demais para uma eleição real. A janela da Merkle Tree já existe e
    resolve.
-5. **Tolerância de atraso no encerramento.** Hoje o prazo é estrito: vale o `castAt`
+4. **Tolerância de atraso no encerramento.** Hoje o prazo é estrito: vale o `castAt`
    carimbado, sem folga. Um voto legítimo com latência alta na fronteira é recusado. A folga
    seria um campo em `ElectionSchedule`, e precisa ser menor que o intervalo até a publicação
    da raiz final.

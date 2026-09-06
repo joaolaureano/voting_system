@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Confirmação do voto</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🧾</text></svg>"
+    />
+  </head>
+  <body>
+    <header class="topo">
+      <h1>Confirmação do voto</h1>
+      <p class="subtitulo">
+        Cole o comprovante que você recebeu ao votar. A verificação acontece
+        <strong>neste navegador</strong> — o servidor entrega a prova, quem decide se ela fecha
+        é a sua máquina.
+      </p>
+    </header>
+
+    <main>
+      <section class="cartao">
+        <form id="formulario" autocomplete="off">
+          <label for="recibo">Recibo</label>
+          <div class="linha-campo">
+            <input
+              id="recibo"
+              name="recibo"
+              type="text"
+              inputmode="latin"
+              spellcheck="false"
+              placeholder="64 caracteres hexadecimais"
+              aria-describedby="ajuda-recibo"
+            />
+            <button type="submit" id="conferir">Conferir</button>
+          </div>
+          <p id="ajuda-recibo" class="ajuda">
+            É o campo <code>receipt</code> da resposta que a urna devolveu.
+          </p>
+        </form>
+      </section>
+
+      <section id="resultado" class="cartao" hidden aria-live="polite"></section>
+
+      <section class="cartao">
+        <div class="cabecalho-secao">
+          <h2>A cadeia de raízes</h2>
+          <button type="button" id="conferir-cadeia" class="secundario">Conferir a cadeia</button>
+        </div>
+        <p class="ajuda">
+          Cada janela de apuração é selada numa árvore, e cada raiz carrega o hash da anterior.
+          Refazer os elos aqui é o que mostra que nenhuma janela antiga foi reescrita.
+        </p>
+        <div id="cadeia" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer class="rodape">
+      <p>
+        A conta é a da <abbr title="Certificate Transparency">RFC 6962</abbr>:
+        <code>folha = SHA-256(0x00 ‖ recibo)</code>,
+        <code>nó = SHA-256(0x01 ‖ esquerda ‖ direita)</code>. O código que roda aqui está em
+        <a href="verify.js">verify.js</a> — sem framework, sem bundler, sem minificação: o que
+        você audita é o que executa.
+      </p>
+    </footer>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

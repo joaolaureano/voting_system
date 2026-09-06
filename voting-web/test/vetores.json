@@ -1,0 +1,299 @@
+{
+  "janelas": [
+    {
+      "windowId": "2026-01-01T00:00:00Z/15s",
+      "sequence": 0,
+      "leafCount": 1,
+      "root": "7f9c9e31ac8256ca2f258583df262dbc7d6f68f2a03043d5c99a4ae5a7396ce9",
+      "previousHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "checkpointHash": "59b6d0052d7bc423a9e48106ec0fcde18027a00d0456750e000dab455eba2b24",
+      "provas": [
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000000",
+          "leafIndex": 0,
+          "treeSize": 1,
+          "path": []
+        }
+      ]
+    },
+    {
+      "windowId": "2026-01-01T00:01:00Z/15s",
+      "sequence": 1,
+      "leafCount": 2,
+      "root": "0ce81b149370f4ead3ca3322dd40a9df4bc11c8af3deae293ef67bfb7e6bc026",
+      "previousHash": "59b6d0052d7bc423a9e48106ec0fcde18027a00d0456750e000dab455eba2b24",
+      "checkpointHash": "cd6a9fee8dc7878104e5aa5d00afbc219851456ab36417852f6ca8bc7db8b13c",
+      "provas": [
+        {
+          "receipt": "00000000000000000000000000000000000000000000000000000000000003e8",
+          "leafIndex": 0,
+          "treeSize": 2,
+          "path": [
+            "addd56c6110a035f1ce84e8be3f0889f907c12e2e03ff54e5c5985507ff5d6ef"
+          ]
+        },
+        {
+          "receipt": "00000000000000000000000000000000000000000000000000000000000003e9",
+          "leafIndex": 1,
+          "treeSize": 2,
+          "path": [
+            "a56a34812c41bbe592ea5fc610b23342545f585f1213ac88306fa0f8803a3a65"
+          ]
+        }
+      ]
+    },
+    {
+      "windowId": "2026-01-01T00:02:00Z/15s",
+      "sequence": 2,
+      "leafCount": 3,
+      "root": "879dd3d48bc3bf2e8bea7e965cf5b5f343e03194c940a72b6dee2f6d54d36bf3",
+      "previousHash": "cd6a9fee8dc7878104e5aa5d00afbc219851456ab36417852f6ca8bc7db8b13c",
+      "checkpointHash": "655942d35f326e9d12d8010e8df35640fb152db41dd6a0ecd7b9c797b7d6c7aa",
+      "provas": [
+        {
+          "receipt": "00000000000000000000000000000000000000000000000000000000000007d0",
+          "leafIndex": 0,
+          "treeSize": 3,
+          "path": [
+            "782be2cb4e7fd4a4782e0dc5d63364c7e95612ce9d7d9853a1eea76bd88cfa80",
+            "b4a042fbf33010a22711255839b0832c055f2662682150aa96d6701d530b1a66"
+          ]
+        },
+        {
+          "receipt": "00000000000000000000000000000000000000000000000000000000000007d1",
+          "leafIndex": 1,
+          "treeSize": 3,
+          "path": [
+            "5187019c36b1a46e182086ebf422f856883ac387750828f5865222ef35915165",
+            "b4a042fbf33010a22711255839b0832c055f2662682150aa96d6701d530b1a66"
+          ]
+        },
+        {
+          "receipt": "00000000000000000000000000000000000000000000000000000000000007d2",
+          "leafIndex": 2,
+          "treeSize": 3,
+          "path": [
+            "c35fe004fed22240e6bc9ea3ef1e9537eb4120c0565dfedd4754d8bc1944c3ed"
+          ]
+        }
+      ]
+    },
+    {
+      "windowId": "2026-01-01T00:03:00Z/15s",
+      "sequence": 3,
+      "leafCount": 7,
+      "root": "ffdf1248654780d18e34e2c9c8efa00527829a758f1f41eb2676cfa70bad22d6",
+      "previousHash": "655942d35f326e9d12d8010e8df35640fb152db41dd6a0ecd7b9c797b7d6c7aa",
+      "checkpointHash": "1adc6dd8041b471caf663802f2d726d273519368f5181dd4f2a7570497f280bb",
+      "provas": [
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000bb8",
+          "leafIndex": 0,
+          "treeSize": 7,
+          "path": [
+            "5896b6aaced8708aa4f3d0f1073022edc932d470c62d8203bfad3e270df8441a",
+            "19b37329ff0775a54348def1ba9b022d844f0cfbaeaf53a51def42e193fe8bfc",
+            "aecac331121a1e11d716e2f67a1d84c9ea7565a58a88661b3f4af752fffab45e"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000bb9",
+          "leafIndex": 1,
+          "treeSize": 7,
+          "path": [
+            "09d8363cff8b8a6ed142893a0114405880278bd0a4b8758bbfd9a9e65516596a",
+            "19b37329ff0775a54348def1ba9b022d844f0cfbaeaf53a51def42e193fe8bfc",
+            "aecac331121a1e11d716e2f67a1d84c9ea7565a58a88661b3f4af752fffab45e"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000bba",
+          "leafIndex": 2,
+          "treeSize": 7,
+          "path": [
+            "934e14d6346f611f2d01bcb965c4646a631f14e4b0de966562009ef387a8f862",
+            "38fb9301556cffefd15429928bde4c7236967781ae3bb7e0b959b601b2e98d4f",
+            "aecac331121a1e11d716e2f67a1d84c9ea7565a58a88661b3f4af752fffab45e"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000bbb",
+          "leafIndex": 3,
+          "treeSize": 7,
+          "path": [
+            "2dff4726a0d4d32d5e173358bb9a03ecce9c71321b2252635862e84c3fc3795e",
+            "38fb9301556cffefd15429928bde4c7236967781ae3bb7e0b959b601b2e98d4f",
+            "aecac331121a1e11d716e2f67a1d84c9ea7565a58a88661b3f4af752fffab45e"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000bbc",
+          "leafIndex": 4,
+          "treeSize": 7,
+          "path": [
+            "464b1f189981ed03de1c2a613038f8c3ac2e669bbf7228e21b51233b5ec4a27b",
+            "49ea37aff05b3777f9a2e369753705699ab0beaa7d5e4e7981f9a0f4a36acca1",
+            "15107b25db3c6cd1ea083774a0e83ef79867c208a9fd1deeb714a6c524a765f8"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000bbd",
+          "leafIndex": 5,
+          "treeSize": 7,
+          "path": [
+            "fa87af1772758db737dd93b05b36383cbcb30e222e156d26ef38db1ef9a7c993",
+            "49ea37aff05b3777f9a2e369753705699ab0beaa7d5e4e7981f9a0f4a36acca1",
+            "15107b25db3c6cd1ea083774a0e83ef79867c208a9fd1deeb714a6c524a765f8"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000bbe",
+          "leafIndex": 6,
+          "treeSize": 7,
+          "path": [
+            "81cbc83a89721d0af402f3ec3996589ec4500233da8e427530affb3200e60acf",
+            "15107b25db3c6cd1ea083774a0e83ef79867c208a9fd1deeb714a6c524a765f8"
+          ]
+        }
+      ]
+    },
+    {
+      "windowId": "2026-01-01T00:04:00Z/15s",
+      "sequence": 4,
+      "leafCount": 12,
+      "root": "ea60da19823475e1ee089f5689f7a6e6c05869617480c71b371bbcf31c03a64f",
+      "previousHash": "1adc6dd8041b471caf663802f2d726d273519368f5181dd4f2a7570497f280bb",
+      "checkpointHash": "5bd8bdbc30d9e4765b53e322a3158bfe8539354cafd1f55c02286a7ed25eccfc",
+      "provas": [
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000fa0",
+          "leafIndex": 0,
+          "treeSize": 12,
+          "path": [
+            "56eb5c6f9d7c0d860796cb84889dd838116787f1625c28c09e15b5496ec6de0b",
+            "8614a9b3cfa66e1291fe162739345696f16a877c4300cfb6dc4f958ee4e53ddd",
+            "4b99a9897dde4dffe801d947f9691c49e4c706872b837d4a7cdd102984d3a58d",
+            "95079d0667528adee5ca1f0fbdbbac17290bedce80871c0206566f38ae0c6990"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000fa1",
+          "leafIndex": 1,
+          "treeSize": 12,
+          "path": [
+            "ad3bdb588c68e576dbfdba3eb315924e9bb07d16e91acaf1ee6341fc0dee4d68",
+            "8614a9b3cfa66e1291fe162739345696f16a877c4300cfb6dc4f958ee4e53ddd",
+            "4b99a9897dde4dffe801d947f9691c49e4c706872b837d4a7cdd102984d3a58d",
+            "95079d0667528adee5ca1f0fbdbbac17290bedce80871c0206566f38ae0c6990"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000fa2",
+          "leafIndex": 2,
+          "treeSize": 12,
+          "path": [
+            "f9c85976aae5ad0c5df3c14d8d7c19713a289f9fa00b588a94e796a596fcacff",
+            "45576bfbbeee96d92272d1a05a14e610444fa234f8bd0e61c5d26da1944b9b5d",
+            "4b99a9897dde4dffe801d947f9691c49e4c706872b837d4a7cdd102984d3a58d",
+            "95079d0667528adee5ca1f0fbdbbac17290bedce80871c0206566f38ae0c6990"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000fa3",
+          "leafIndex": 3,
+          "treeSize": 12,
+          "path": [
+            "87f2aebe84e34e68f697c421d3bb8641a8a549fb9abd303d9533e4e6c27d5865",
+            "45576bfbbeee96d92272d1a05a14e610444fa234f8bd0e61c5d26da1944b9b5d",
+            "4b99a9897dde4dffe801d947f9691c49e4c706872b837d4a7cdd102984d3a58d",
+            "95079d0667528adee5ca1f0fbdbbac17290bedce80871c0206566f38ae0c6990"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000fa4",
+          "leafIndex": 4,
+          "treeSize": 12,
+          "path": [
+            "e6dbaee08b169a5cafff882803067167ba66ead291ef72cbeb7d39796eab0e48",
+            "233076c499eae66f2ca422f9612a70729cf9a967a4844047b941fe098cce7ace",
+            "1d0d218326950c32c4cd3d9427ef0e2a2b18215fd1be2b677952750ff9389c63",
+            "95079d0667528adee5ca1f0fbdbbac17290bedce80871c0206566f38ae0c6990"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000fa5",
+          "leafIndex": 5,
+          "treeSize": 12,
+          "path": [
+            "6e2ae8657f9c97ffc4fa0ee1fd13c49debefa2e343e016a819eb1d005519ce6f",
+            "233076c499eae66f2ca422f9612a70729cf9a967a4844047b941fe098cce7ace",
+            "1d0d218326950c32c4cd3d9427ef0e2a2b18215fd1be2b677952750ff9389c63",
+            "95079d0667528adee5ca1f0fbdbbac17290bedce80871c0206566f38ae0c6990"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000fa6",
+          "leafIndex": 6,
+          "treeSize": 12,
+          "path": [
+            "d95cdc9894db9328060e422421317bceebe22f5dccc9abcfa4af342017e0487a",
+            "7f85b4c45198544e2a901d37fa894e1fed857440bf5b5182005c568f6fc55b7c",
+            "1d0d218326950c32c4cd3d9427ef0e2a2b18215fd1be2b677952750ff9389c63",
+            "95079d0667528adee5ca1f0fbdbbac17290bedce80871c0206566f38ae0c6990"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000fa7",
+          "leafIndex": 7,
+          "treeSize": 12,
+          "path": [
+            "dfccf168053c7bd235affebadb95651f2e3817dfb463ef1e67f3bc665ff3d32f",
+            "7f85b4c45198544e2a901d37fa894e1fed857440bf5b5182005c568f6fc55b7c",
+            "1d0d218326950c32c4cd3d9427ef0e2a2b18215fd1be2b677952750ff9389c63",
+            "95079d0667528adee5ca1f0fbdbbac17290bedce80871c0206566f38ae0c6990"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000fa8",
+          "leafIndex": 8,
+          "treeSize": 12,
+          "path": [
+            "992924b98e33a95232e34242685d0a7f38188791b01631ebef6bf967663bea37",
+            "80d7d9062f3fabcdac5636b6c1c06a5e3ad6a5c22fe97aa6fb9b5b4d64137110",
+            "1b8c8fa48ef433d4657af6593528e4ea76557d7fff57e574b23eee8d222e0a62"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000fa9",
+          "leafIndex": 9,
+          "treeSize": 12,
+          "path": [
+            "d6aff7f09ecea5e4e6b098b586922e4272e102baed890259622553058ecd5eb1",
+            "80d7d9062f3fabcdac5636b6c1c06a5e3ad6a5c22fe97aa6fb9b5b4d64137110",
+            "1b8c8fa48ef433d4657af6593528e4ea76557d7fff57e574b23eee8d222e0a62"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000faa",
+          "leafIndex": 10,
+          "treeSize": 12,
+          "path": [
+            "7e8f34b5fbdc172ec997e685b5c8941cc28a340c9e9e77bdf8815bb7f9000c38",
+            "241652de18756f5bab35188e5a510fa21f3dd9c000d6fdc6ab3506438a3a134b",
+            "1b8c8fa48ef433d4657af6593528e4ea76557d7fff57e574b23eee8d222e0a62"
+          ]
+        },
+        {
+          "receipt": "0000000000000000000000000000000000000000000000000000000000000fab",
+          "leafIndex": 11,
+          "treeSize": 12,
+          "path": [
+            "75ad6692e9e81b742a19df9e8ddb9662a465898fb6c93042ce1a607ee6e19287",
+            "241652de18756f5bab35188e5a510fa21f3dd9c000d6fdc6ab3506438a3a134b",
+            "1b8c8fa48ef433d4657af6593528e4ea76557d7fff57e574b23eee8d222e0a62"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -9,16 +9,22 @@ JOB_ARGS  ?= --bootstrap.servers kafka:9092 --merkle.window.ms 15000
 # Perfil do benchmark. Ex.: make bench BENCH="-Dvotes=50000 -Dramp=60 -DduplicateRate=0.05"
 BENCH     ?= -Dvotes=10000 -Dramp=30 -DduplicateRate=0.1
 
-.PHONY: help test test-go build up down submit cancel bench bench-data results rejected roots proof chain restart-merkle logs clean
+.PHONY: help test test-go test-web web-vetores build up down submit cancel bench bench-data results rejected roots proof chain restart-merkle logs clean
 
 help:
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
 
-test: test-go ## Roda todos os testes (Java e Go)
+test: test-go test-web ## Roda todos os testes (Java, Go e o verificador do navegador)
 	$(MVN) test
 
 test-go: ## Roda os testes do servico Merkle
 	cd voting-merkle && go test ./...
+
+test-web: ## Roda os testes do verificador do navegador (sem npm install: nao ha dependencia)
+	cd voting-web && npm test
+
+web-vetores: ## Regera os vetores do frontend a partir da implementacao em Go
+	cd voting-merkle && go run ./cmd/vetores > ../voting-web/test/vetores.json
 
 build: ## Compila tudo e gera o fat-jar do job Flink
 	$(MVN) -DskipTests package
@@ -28,6 +34,7 @@ up: build ## Sobe Kafka, Flink, a API de ingestao e o kafka-ui
 	@echo "API      http://localhost:8081"
 	@echo "Flink    http://localhost:8082"
 	@echo "Merkle   http://localhost:8083"
+	@echo "Confira  http://localhost:8084"
 	@echo "Kafka UI http://localhost:8080"
 
 submit: ## Submete o job de apuracao ao cluster Flink
