@@ -244,9 +244,14 @@ O pedido era ser o mais agnóstico possível, então o núcleo não sabe o que �
 |---|---|
 | `pkg/merkle` | árvores e provas. **Zero dependências**, zero vocabulário de eleição. |
 | `pkg/checkpoint` | lotes de folhas opacas, selados e encadeados. Depende só de `pkg/merkle`. |
+| `pkg/wal` | um log append-only durável de registros opacos. **Zero dependências**. |
+| `pkg/journal` | grava os fatos da cadeia no `pkg/wal`. É a implementação de `checkpoint.Store`. |
 | `internal/voting` | os eventos da votação e como viram folhas. |
 | `internal/kafkaio` | o único pacote que sabe que o transporte é Kafka. |
 | `internal/api` | HTTP. |
+
+`pkg/checkpoint` define a interface `Store` e não sabe o que há do outro lado — um arquivo,
+um banco, um teste em memória. Continua dependendo só de `pkg/merkle`.
 
 ### Desempenho
 
@@ -299,15 +304,83 @@ O caso de 100 mil folhas não estabiliza com mais iterações: os níveis somam 
 o L2, e a prova toca um nó por nível em endereços espalhados. Nessa escala `Prove` é limitado
 por cache miss, não por computação — a variância vem do estado de cache entre processos.
 
-### Limitação conhecida: sem persistência
+### Persistência: o diário da cadeia
 
-A cadeia vive **em memória**. Um restart relê os dois tópicos desde o início e reconstrói tudo
-— por isso o consumidor usa um grupo efêmero por processo, em vez de retomar de um offset
-salvo, que daria uma árvore com buracos.
+A cadeia mora em disco, num log append-only (`/var/lib/merkle/chain.wal`) com três tipos de
+registro: uma folha entrou num lote, um lote foi anunciado com um total, um lote foi selado.
+Nada é atualizado nem apagado — reescrever o passado é exatamente o que a cadeia de hashes
+existe para denunciar.
 
-Funciona porque `merkle.roots` é compactado e guarda a cadeia publicada, mas não escala para
-uma eleição real: o tempo de partida cresce com o número de votos. Persistir folhas e
-checkpoints é o próximo passo natural.
+```bash
+make chain            # storeId do diário, cabeça da cadeia, janelas abertas
+make restart-merkle   # derruba e sobe só o serviço: a cadeia volta do disco
+```
+
+#### A partida é uma auditoria do próprio disco
+
+A retomada **não** confia no que está gravado: ela relê as folhas de cada lote, reconstrói a
+árvore e recalcula raiz e elo, conferindo contra o selo registrado. Se um byte de uma folha
+mudou no disco, a raiz recalculada diverge e o serviço **não sobe**.
+
+A alternativa — guardar a raiz e servi-la — trocaria uma falha barulhenta na partida por
+provas erradas servidas com confiança, possivelmente meses depois. Guardar as folhas custa
+espaço; guardar só a raiz custa a própria garantia.
+
+O `pkg/wal` faz a distinção que importa antes disso: um registro que acaba **antes** do que
+promete é o rastro de uma queda no meio de um append — o arquivo é truncado ali, e a operação
+perdida volta pela reentrega do Kafka. Um registro completo com **CRC errado** é outra coisa:
+os bytes chegaram e estão errados. Isso é erro, não rabo torto. Tratar os dois como a mesma
+coisa descartaria em silêncio tudo dali para frente.
+
+#### Retomar o consumo sem abrir buracos
+
+Com a cadeia em disco, o consumidor pode enfim retomar de um offset salvo. Duas regras fazem
+isso ser seguro:
+
+**O offset só avança depois do `fsync`.** Quem confirma o consumo é quem acabou de ver o
+diário chegar ao disco, e o commit é sempre manual — nunca em segundo plano por intervalo,
+que poderia passar na frente do `fsync`. Enquanto essa ordem valer, um offset confirmado
+significa "estas folhas estão gravadas". Invertida, uma queda deixaria o Kafka achando que
+aquelas folhas já foram tratadas, e a janela seria selada **sem elas** — o buraco silencioso
+que a versão anterior evitava relendo tudo.
+
+**O nome do grupo carrega a identidade do diário.** O arquivo sorteia um id na criação, e o
+grupo de consumo é `merkle-service-<id>`. Enquanto o volume sobreviver, o grupo é o mesmo e o
+consumo continua de onde parou. Se o volume for perdido, o diário nasce com id novo, o grupo
+também é novo, e a leitura recomeça do início dos tópicos — que é o correto, porque não há
+estado local a que o offset antigo correspondesse. Um grupo de nome fixo é justamente o que
+produziria a árvore com buracos.
+
+A raiz também só é publicada em `merkle.roots` **depois** do `fsync` do selo: não se anuncia
+publicamente um compromisso que ainda pode sumir num restart. São poucos `fsync` (um por
+janela), e eles vêm antes do anúncio.
+
+#### O que a retomada custa
+
+```bash
+cd voting-merkle && go test ./pkg/journal -run '^$' -bench . -benchtime 30x
+```
+
+| | custo | onde pesa |
+|---|---|---|
+| gravar uma folha | 327 ns, 1 alocação | por voto, sem `fsync` |
+| `fsync` de um lote de 256 folhas | ~7 ms | ~27 µs por voto, amortizado |
+| retomar 100 mil folhas do disco | **~65 ms** | uma vez, na partida |
+
+Os 65 ms incluem reconstruir cada árvore e reconferir cada raiz. É a comparação que justifica
+o trabalho: no lugar de reler dois tópicos do Kafka desde o início, a partida lê um arquivo
+local sequencialmente.
+
+#### O que continua valendo
+
+O volume não é a fonte da verdade, e perdê-lo não perde a apuração: `votes.accepted` e
+`votes.windows` continuam sendo, e a reconstrução completa continua funcionando — só é lenta.
+`merkle.roots` segue compactado, então um auditor externo reconstrói a cadeia publicada sem
+falar com o serviço.
+
+O limite que **não** foi resolvido é a memória: as árvores continuam inteiras em RAM para
+servir provas em O(log n), então o processo ainda cresce com o número de votos. Servir provas
+direto do disco é outro trabalho, e outra escolha de desempenho.
 
 ## Garantias
 
@@ -357,8 +430,9 @@ candidato seria um mapa do voto de cada eleitor.
 
 ## Próximas fases
 
-1. **Persistência da cadeia Merkle.** Ver a limitação conhecida acima: hoje a árvore vive em
-   memória e um restart relê tudo.
+1. **Provas servidas do disco.** A persistência resolveu o tempo de partida, não a memória:
+   as árvores continuam inteiras em RAM. Um índice de folha para posição em disco tiraria o
+   teto de votos por processo.
 2. **Frontend de confirmação.** O backend está pronto: `GET /proof/{recibo}` devolve prova e
    raiz. Falta a tela onde o eleitor cola o hash — e, idealmente, que a verificação rode no
    navegador dele, não no servidor.

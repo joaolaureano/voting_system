@@ -9,7 +9,7 @@ JOB_ARGS  ?= --bootstrap.servers kafka:9092 --merkle.window.ms 15000
 # Perfil do benchmark. Ex.: make bench BENCH="-Dvotes=50000 -Dramp=60 -DduplicateRate=0.05"
 BENCH     ?= -Dvotes=10000 -Dramp=30 -DduplicateRate=0.1
 
-.PHONY: help test test-go build up down submit cancel bench bench-data results rejected roots proof logs clean
+.PHONY: help test test-go build up down submit cancel bench bench-data results rejected roots proof chain restart-merkle logs clean
 
 help:
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | sed 's/:.*## /\t/'
@@ -56,6 +56,14 @@ roots: ## Mostra a cadeia de raizes ja seladas
 proof: ## Prova de inclusao de um recibo: make proof RECEIPT=<hash>
 	@curl -s localhost:8083/proof/$(RECEIPT) | python3 -m json.tool
 
+chain: ## Estado da cadeia: identidade do diario, cabeca e janelas abertas
+	@curl -s localhost:8083/healthz | python3 -m json.tool
+
+restart-merkle: ## Reinicia so o servico Merkle: a cadeia tem de voltar do disco intacta
+	@$(COMPOSE) restart merkle
+	@sleep 3
+	@$(COMPOSE) logs --tail 3 merkle
+
 rejected: ## Mostra os votos recusados pela apuracao
 	@$(KAFKA)/kafka-console-consumer.sh --bootstrap-server kafka:9092 \
 		--topic votes.rejected --from-beginning --timeout-ms 4000 2>/dev/null | tail -20
@@ -63,7 +71,7 @@ rejected: ## Mostra os votos recusados pela apuracao
 logs: ## Segue os logs do cluster
 	$(COMPOSE) logs -f --tail 50
 
-down: ## Derruba tudo e apaga os dados (topicos e checkpoints)
+down: ## Derruba tudo e apaga os dados (topicos, checkpoints do Flink e o diario da cadeia)
 	$(COMPOSE) down -v
 
 clean: ## Limpa os artefatos de build

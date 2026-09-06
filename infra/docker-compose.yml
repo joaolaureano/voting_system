@@ -107,6 +107,12 @@ services:
     command:
       - --brokers=kafka:9092
       - --addr=:8083
+      - --data-dir=/var/lib/merkle
+    volumes:
+      # A cadeia mora aqui. Perder este volume nao perde a apuracao - o servico reconstroi
+      # tudo relendo os topicos - mas e a diferenca entre subir em milissegundos e reler a
+      # eleicao inteira.
+      - merkle-data:/var/lib/merkle
 
   jobmanager:
     build:
@@ -165,3 +171,4 @@ services:
 volumes:
   kafka-data:
   flink-checkpoints:
+  merkle-data:

@@ -1,10 +1,10 @@
 {
-  "0": "ElectionSchedule",
+  "0": "org.junit.jupiter.api.Test",
   "1": "VoteAggregationJob.java",
   "2": "JobConfig",
-  "3": "DatasetTest.java",
+  "3": "VoteFeeder",
   "4": "com.fasterxml.jackson.databind.ObjectMapper",
-  "5": "org.junit.jupiter.api.Test",
+  "5": ".execute",
   "6": "VotingProperties",
   "7": "testing.T",
   "8": "DomainException",
@@ -25,10 +25,10 @@
   "23": "ReceiptPublisher",
   "24": "VoteReceipt",
   "25": "VoteControllerClosedElectionTest.java",
-  "26": "VoteTally",
-  "27": ".toDomain",
+  "26": "VoteAdmissionTest.java",
+  "27": "Log",
   "28": "ElectionId",
   "29": "org.springframework.context.annotation.Configuration",
-  "32": "RejectionReason",
-  "34": "VoteFeeder"
+  "30": "Log",
+  "32": "RejectionReason"
 }
