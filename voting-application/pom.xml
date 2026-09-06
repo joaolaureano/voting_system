@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.voting</groupId>
+    <artifactId>voting-system</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>voting-application</artifactId>
+  <name>voting-application</name>
+  <description>
+    Casos de uso e portas. Orquestra o dominio e declara o que precisa do mundo externo,
+    sem saber quem implementa. Depende apenas de voting-domain.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.voting</groupId>
+      <artifactId>voting-domain</artifactId>
+    </dependency>
+  </dependencies>
+</project>

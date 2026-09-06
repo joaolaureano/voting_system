@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.voting</groupId>
+    <artifactId>voting-system</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>voting-benchmark</artifactId>
+  <name>voting-benchmark</name>
+  <description>
+    Teste de carga com Gatling sobre uma base fixa de partidos, candidatos e municipios.
+    A base e versionada para que duas execucoes sejam comparaveis.
+  </description>
+
+  <dependencies>
+    <!-- DataFaker so e usado para gerar a base uma vez; a carga em si le os CSVs. -->
+    <dependency>
+      <groupId>net.datafaker</groupId>
+      <artifactId>datafaker</artifactId>
+      <version>${datafaker.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.gatling.highcharts</groupId>
+      <artifactId>gatling-charts-highcharts</artifactId>
+      <version>${gatling.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.gatling</groupId>
+        <artifactId>gatling-maven-plugin</artifactId>
+        <version>${gatling.maven.plugin.version}</version>
+        <configuration>
+          <simulationClass>com.voting.benchmark.VoteSimulation</simulationClass>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

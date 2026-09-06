@@ -1,0 +1,23 @@
+{
+  "0": "Vote",
+  "1": "VoteCastEvent",
+  "2": "JobConfig",
+  "3": "org.junit.jupiter.api.Test",
+  "4": "com.fasterxml.jackson.databind.ObjectMapper",
+  "5": ".of",
+  "6": "ApiExceptionHandler.java",
+  "7": "DatasetTest.java",
+  "8": "JsonTypeSerializer",
+  "9": "VoteSimulation",
+  "10": "JsonTypeInfo",
+  "11": "Sistema de Votação em Tempo Real — Kafka + Flink",
+  "12": "IngestApiApplication",
+  "13": "Identifiers",
+  "14": "com.voting:voting-system",
+  "15": "voting-application",
+  "16": "voting-benchmark",
+  "17": "voting-contracts",
+  "18": "voting-domain",
+  "19": "voting-ingest-api",
+  "20": "voting-streaming"
+}

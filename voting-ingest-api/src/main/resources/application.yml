@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: voting-ingest-api
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # acks=all + idempotencia: um voto nao pode ser perdido num failover de lider, nem
+      # duplicado por retry do produtor.
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 10000
+        request.timeout.ms: 5000
+
+server:
+  port: 8081
+
+voting:
+  election-id: ${VOTING_ELECTION_ID:br-2026-presidencial}
+  # Segredo do servidor. O valor abaixo e so para desenvolvimento: em producao vem do
+  # ambiente e nunca do repositorio.
+  receipt-pepper: ${VOTING_RECEIPT_PEPPER:pepper-de-desenvolvimento-trocar-em-producao}
+  votes-topic: votes.cast
+  receipts-topic: votes.receipts
+  send-timeout-ms: 5000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+logging:
+  level:
+    com.voting: INFO

@@ -1,0 +1,12 @@
+target/
+*.class
+.idea/
+*.iml
+.vscode/
+.DS_Store
+.serena/
+
+# Grafo do graphify: o artefato entra no repositorio, os derivados locais nao.
+# cache/ e o AST cacheado por hash de arquivo, e 20*/ sao backups datados de cada update.
+graphify-out/cache/
+graphify-out/20*/

@@ -1,0 +1,48 @@
+package com.voting.ingest.web;
+
+import com.voting.ingest.kafka.EventPublicationException;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+/**
+ * Traducao de falhas para HTTP.
+ *
+ * <p>A distincao que importa para o eleitor: 400 significa "seu voto tem um problema, corrija";
+ * 503 significa "o voto esta bom, o sistema e que nao conseguiu registra-lo - tente de novo".
+ * Reenviar apos um 503 e seguro, porque a duplicata seria filtrada na apuracao.
+ */
+@RestControllerAdvice
+public class ApiExceptionHandler {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
+    /** Corpo de erro simples; nao expoe detalhes internos ao cliente. */
+    public record ApiError(String error, String message) {
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiError> invalidBody(MethodArgumentNotValidException e) {
+        String detalhes = e.getBindingResult().getFieldErrors().stream()
+                .map(field -> field.getField() + ": " + field.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+        return ResponseEntity.badRequest().body(new ApiError("VOTO_INVALIDO", detalhes));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> invalidVote(IllegalArgumentException e) {
+        return ResponseEntity.badRequest().body(new ApiError("VOTO_INVALIDO", e.getMessage()));
+    }
+
+    @ExceptionHandler(EventPublicationException.class)
+    public ResponseEntity<ApiError> publicationFailed(EventPublicationException e) {
+        LOG.error("voto nao registrado", e);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ApiError("REGISTRO_INDISPONIVEL", "voto nao registrado; tente novamente"));
+    }
+}

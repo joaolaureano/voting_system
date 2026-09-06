@@ -1,0 +1,139 @@
+name: voting-system
+
+services:
+
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: voting-kafka
+    ports:
+      - "29092:29092"   # acesso a partir da maquina host
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,PLAINTEXT_HOST://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Precisa ser >= transaction.timeout.ms dos sinks do Flink (900000), senao o produtor
+      # transacional e recusado e o job nao sobe.
+      KAFKA_TRANSACTION_MAX_TIMEOUT_MS: 900000
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+
+  # Cria os topicos e sai. Os resultados e os comprovantes sao compactados: guardam o ultimo
+  # valor de cada chave para sempre, que e o que permite reconstruir o placar e conferir um
+  # comprovante muito depois da eleicao.
+  kafka-init:
+    image: apache/kafka:3.9.0
+    container_name: voting-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        criar() {
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists \
+            --topic "$$1" --partitions "$$2" --replication-factor 1 $${3:+--config $$3}
+        }
+        criar votes.cast 6
+        criar votes.rejected 3
+        criar votes.receipts 6 cleanup.policy=compact
+        criar results.by-candidate 3 cleanup.policy=compact
+        criar results.by-state 3 cleanup.policy=compact
+        criar results.by-city 3 cleanup.policy=compact
+        criar results.by-party 3 cleanup.policy=compact
+        echo "topicos prontos:"
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+
+  ingest-api:
+    build:
+      context: ..
+      dockerfile: voting-ingest-api/Dockerfile
+    container_name: voting-ingest-api
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    ports:
+      - "8081:8081"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      VOTING_ELECTION_ID: br-2026-presidencial
+      # Em producao isto vem de um cofre de segredos, jamais do compose.
+      VOTING_RECEIPT_PEPPER: pepper-de-desenvolvimento-trocar-em-producao
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/actuator/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  jobmanager:
+    build:
+      context: flink
+    image: voting-flink:1.20.1-java17
+    container_name: voting-flink-jobmanager
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    ports:
+      - "8082:8081"     # interface do Flink
+    command: jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: jobmanager
+        state.backend.type: hashmap
+        execution.checkpointing.storage: filesystem
+        execution.checkpointing.dir: file:///flink-checkpoints
+        parallelism.default: 2
+    volumes:
+      - ../voting-streaming/target:/opt/flink/usrjob:ro
+      - flink-checkpoints:/flink-checkpoints
+
+  taskmanager:
+    build:
+      context: flink
+    image: voting-flink:1.20.1-java17
+    container_name: voting-flink-taskmanager
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 8
+        state.backend.type: hashmap
+        execution.checkpointing.storage: filesystem
+        execution.checkpointing.dir: file:///flink-checkpoints
+    volumes:
+      - ../voting-streaming/target:/opt/flink/usrjob:ro
+      - flink-checkpoints:/flink-checkpoints
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: voting-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: voting
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      DYNAMIC_CONFIG_ENABLED: "true"
+
+volumes:
+  kafka-data:
+  flink-checkpoints:
