@@ -1,8 +1,10 @@
-# Sistema de Votação em Tempo Real — Kafka + Flink
+# Real-Time Voting System — Kafka + Flink
 
-Apuração de votos em streaming: os votos entram por uma API REST, vão para o Kafka e um job
-Flink garante **um voto por eleitor** e mantém a contagem corrente por **candidato, estado,
-cidade e partido**.
+**[Leia em português / Read this in Portuguese](README.pt-BR.md)**
+
+Streaming vote tallying: votes come in through a REST API, go to Kafka, and a Flink job
+enforces **one vote per voter** and keeps a running count by **candidate, state, city and
+party**.
 
 ```
 POST /api/v1/votes ──► ingest-api ──► [votes.cast] ──► Flink ──┬─► [results.by-candidate]
@@ -17,50 +19,50 @@ POST /api/v1/votes ──► ingest-api ──► [votes.cast] ──► Flink �
                                            ▼
                                     merkle-service (Go) ──► [merkle.roots]
                                            │
-                                           └──► GET /proof/{recibo} ◄── voting-web
-                                                                       (verifica no
-                                                                        navegador)
+                                           └──► GET /proof/{receipt} ◄── voting-web
+                                                                        (verifies in
+                                                                         the browser)
 ```
 
-## Índice
+## Contents
 
-[Como rodar](#como-rodar) · [Arquitetura](#arquitetura) · [Tópicos](#tópicos) ·
-[Teste de carga](#teste-de-carga) · [Merkle Tree](#merkle-tree-e-prova-de-inclusão) ·
-[A tela do eleitor](#a-tela-do-eleitor) · [Persistência](#persistência-o-diário-da-cadeia) ·
-[Garantias](#garantias) · [Privacidade do recibo](#nota-de-privacidade-sobre-o-recibo) ·
-[Encerramento](#encerramento-da-votação) ·
-[Marca d'água](#o-travamento-da-marca-dágua-e-por-que-heartbeats) ·
-[Próximas fases](#próximas-fases)
+[How to run](#how-to-run) · [Architecture](#architecture) · [Topics](#topics) ·
+[Load test](#load-test) · [Merkle Tree](#merkle-tree-and-inclusion-proof) ·
+[The voter's screen](#the-voters-screen) · [Persistence](#persistence-the-chain-journal) ·
+[Guarantees](#guarantees) · [Receipt privacy](#privacy-note-on-the-receipt) ·
+[Closing](#closing-the-vote) ·
+[Watermark](#the-watermark-stall-and-why-heartbeats) ·
+[Next phases](#next-phases)
 
-## Como rodar
+## How to run
 
-Requisitos: Docker, um JDK 17+, Go 1.24+ e Node 20+ (só para `make test-web`; a página em si
-não tem build). O `Makefile` usa `/opt/homebrew/opt/openjdk@21` por padrão — sobrescreva com
-`make JAVA_HOME=...`.
+Requirements: Docker, a JDK 17+, Go 1.24+ and Node 20+ (only for `make test-web`; the page
+itself has no build). The `Makefile` uses `/opt/homebrew/opt/openjdk@21` by default — override
+it with `make JAVA_HOME=...`.
 
 ```bash
-make test        # 157 testes (89 Java + 53 Go + 15 do verificador do navegador)
-make up          # Kafka (KRaft), Flink, API de ingestão, serviço Merkle, a tela e o kafka-ui
-make submit      # submete o job de apuração
-make bench       # teste de carga com Gatling (10.000 votos, 10% duplicatas)
-make results     # placar corrente por candidato e por estado
-make rejected    # votos recusados
-make roots       # cadeia de raízes Merkle já seladas
-make proof RECEIPT=<hash>   # prova de inclusão de um recibo
-make chain       # estado da cadeia: identidade do diário, cabeça e janelas abertas
-make down        # derruba tudo e apaga os dados
+make test        # 157 tests (89 Java + 53 Go + 15 for the browser verifier)
+make up          # Kafka (KRaft), Flink, ingest API, Merkle service, the screen and kafka-ui
+make submit      # submits the tallying job
+make bench       # load test with Gatling (10,000 votes, 10% duplicates)
+make results     # running scoreboard by candidate and by state
+make rejected    # rejected votes
+make roots       # chain of Merkle roots already sealed
+make proof RECEIPT=<hash>   # inclusion proof for a receipt
+make chain       # chain state: journal identity, head and open windows
+make down        # tears everything down and deletes the data
 ```
 
-| Serviço | Endereço |
+| Service | Address |
 |---|---|
-| Confirmação do voto (a tela) | http://localhost:8084 |
-| API de ingestão | http://localhost:8081 |
-| Interface do Flink | http://localhost:8082 |
-| Serviço Merkle (provas) | http://localhost:8083 |
+| Vote confirmation (the screen) | http://localhost:8084 |
+| Ingest API | http://localhost:8081 |
+| Flink UI | http://localhost:8082 |
+| Merkle service (proofs) | http://localhost:8083 |
 | Kafka UI | http://localhost:8080 |
-| Kafka (do host) | `localhost:29092` |
+| Kafka (from the host) | `localhost:29092` |
 
-### Votar
+### Voting
 
 ```bash
 curl -XPOST localhost:8081/api/v1/votes -H 'Content-Type: application/json' -d '{
@@ -70,455 +72,455 @@ curl -XPOST localhost:8081/api/v1/votes -H 'Content-Type: application/json' -d '
 # 201 {"receipt":"38641edb…","status":"ACCEPTED","castAt":"2026-09-06T07:40:22.299Z"}
 ```
 
-`ACCEPTED` significa **aceito para apuração**, não "computado". A unicidade é decidida
-adiante, pelo Flink, que é quem tem o estado de todos os eleitores. O recibo é o que permite
-conferir o desfecho depois.
+`ACCEPTED` means **accepted for tallying**, not "counted". Uniqueness is decided further
+downstream, by Flink, which holds the state of every voter. The receipt is what lets you check
+the outcome later.
 
-## Arquitetura
+## Architecture
 
-Módulos Maven — mais dois que não são Java —, do centro para a borda. A dependência só aponta
-para dentro:
+Maven modules — plus two that aren't Java — from the core to the edge. Dependencies only
+point inward:
 
-| Módulo | Papel |
+| Module | Role |
 |---|---|
-| `voting-domain` | **Java puro.** Voto, unicidade, recibo, apuração. Sem Kafka, Flink, Spring ou Jackson. |
-| `voting-application` | Casos de uso e portas. Depende só do domínio. |
-| `voting-contracts` | Eventos que trafegam no Kafka + tradução de/para o domínio. |
-| `voting-ingest-api` | Adaptadores: REST de entrada, produtor Kafka de saída. |
-| `voting-streaming` | Adaptador Flink: fontes, sinks e funções finas que delegam ao domínio. |
-| `voting-benchmark` | Teste de carga com Gatling sobre uma base fixa de partidos, candidatos e municípios. |
-| `voting-merkle` | **Go.** Sela cada janela numa árvore de Merkle encadeada e serve provas de inclusão. |
-| `voting-web` | **HTML e JavaScript, sem build.** A tela onde o eleitor confere o recibo — a verificação roda no navegador dele. |
+| `voting-domain` | **Plain Java.** Vote, uniqueness, receipt, tally. No Kafka, Flink, Spring or Jackson. |
+| `voting-application` | Use cases and ports. Depends only on the domain. |
+| `voting-contracts` | Events that travel through Kafka + translation to/from the domain. |
+| `voting-ingest-api` | Adapters: inbound REST, outbound Kafka producer. |
+| `voting-streaming` | Flink adapter: sources, sinks and thin functions that delegate to the domain. |
+| `voting-benchmark` | Gatling load test over a fixed base of parties, candidates and municipalities. |
+| `voting-merkle` | **Go.** Seals each window into a chained Merkle tree and serves inclusion proofs. |
+| `voting-web` | **HTML and JavaScript, no build.** The screen where voters check their receipt — verification runs in their browser. |
 
-A regra que sustenta o desacoplamento: **`voting-domain/pom.xml` não declara nenhuma
-dependência externa** (só JUnit em teste). Se algo de infraestrutura precisar entrar ali, é
-sinal de que a modelagem vazou.
+The rule that holds the decoupling together: **`voting-domain/pom.xml` declares no external
+dependencies** (only JUnit for tests). If something from the infrastructure needs to go in
+there, it's a sign the modelling has leaked.
 
-Duas consequências concretas disso no código:
+Two concrete consequences of this in the code:
 
-- `TallyDimension` (domínio) sabe extrair sua própria chave de um voto. Por isso o job Flink
-  não contém nenhuma regra de "como se agrupa por cidade" — ele itera sobre as dimensões.
-  Acrescentar uma dimensão nova é acrescentar uma constante no enum.
-- `VoteAdmission` (domínio) decide se um voto entra; o Flink apenas **guarda** o recibo
-  anterior de cada eleitor no estado por chave. Trocar o mecanismo de estado não mexe na
-  regra, e a regra é testável sem subir um cluster.
+- `TallyDimension` (domain) knows how to extract its own key from a vote. That's why the Flink
+  job contains no "how to group by city" rule — it iterates over the dimensions. Adding a new
+  dimension means adding a constant to the enum.
+- `VoteAdmission` (domain) decides whether a vote gets in; Flink only **stores** each voter's
+  previous receipt in keyed state. Swapping the state mechanism doesn't touch the rule, and the
+  rule is testable without starting a cluster.
 
-## Tópicos
+## Topics
 
-| Tópico | Chave | Política |
+| Topic | Key | Policy |
 |---|---|---|
-| `votes.cast` | `voterId` | 6 partições |
-| `votes.rejected` | `voterId` | duplicatas e votos inválidos, auditáveis |
-| `votes.receipts` | hash do recibo | compactado |
-| `votes.accepted` | `voterId` | 6 partições; o fluxo pós-dedup, base da árvore |
-| `votes.control` | — | 1 partição; os batimentos que destravam a marca d'água |
-| `votes.windows` | `windowId` | **1 partição**; a ordem dos marcadores define a cadeia |
-| `merkle.roots` | `windowId` | compactado; a cadeia de raízes publicada |
-| `results.by-candidate` / `-state` / `-city` / `-party` | valor da dimensão | compactado |
+| `votes.cast` | `voterId` | 6 partitions |
+| `votes.rejected` | `voterId` | duplicates and invalid votes, auditable |
+| `votes.receipts` | receipt hash | compacted |
+| `votes.accepted` | `voterId` | 6 partitions; the post-dedup stream, base of the tree |
+| `votes.control` | — | 1 partition; the heartbeats that unstick the watermark |
+| `votes.windows` | `windowId` | **1 partition**; the order of the markers defines the chain |
+| `merkle.roots` | `windowId` | compacted; the published chain of roots |
+| `results.by-candidate` / `-state` / `-city` / `-party` | dimension value | compacted |
 
-A chave de `votes.cast` **não é decorativa**: é o que coloca todos os votos de um eleitor na
-mesma partição, condição para que o dedup por chave do Flink enxergue a duplicata. Trocá-la
-quebra a regra "um voto por eleitor" sem quebrar nenhum teste unitário.
+The `votes.cast` key **is not decorative**: it's what puts all of a voter's votes in the same
+partition, which is required for Flink's keyed dedup to see the duplicate. Changing it breaks
+the "one vote per voter" rule without breaking a single unit test.
 
-Os tópicos de resultado são compactados e keyed pela dimensão: o Kafka mantém a última
-contagem de cada chave para sempre, então um consumidor que leia do início reconstrói o
-placar completo.
+The result topics are compacted and keyed by dimension: Kafka keeps the latest count for each
+key forever, so a consumer reading from the beginning rebuilds the full scoreboard.
 
-## Teste de carga
+## Load test
 
 ```bash
-make bench                                              # 10.000 votos em 30s, 10% duplicatas
+make bench                                              # 10,000 votes in 30s, 10% duplicates
 make bench BENCH="-Dvotes=50000 -Dramp=60 -DduplicateRate=0.05"
-# relatório em voting-benchmark/target/gatling/*/index.html
+# report in voting-benchmark/target/gatling/*/index.html
 ```
 
-Uma rodada de referência nesta máquina (Colima, 4 vCPU): 10.000 requisições, **0 falhas**,
-p95 **49 ms**, 322 req/s — e a apuração fechou em 8.986, exatamente o número de eleitores
-distintos, com 1.014 duplicatas em `votes.rejected`.
+A reference run on this machine (Colima, 4 vCPU): 10,000 requests, **0 failures**, p95
+**49 ms**, 322 req/s — and the tally closed at 8,986, exactly the number of distinct voters,
+with 1,014 duplicates in `votes.rejected`.
 
-### A base fixa
+### The fixed dataset
 
-`voting-benchmark/src/main/resources/dataset/` é versionada, e não sorteada a cada execução:
-duas rodadas só são comparáveis se disputarem a mesma eleição.
+`voting-benchmark/src/main/resources/dataset/` is versioned rather than randomly drawn on each
+run: two runs are only comparable if they contest the same election.
 
-| Arquivo | Conteúdo |
+| File | Contents |
 |---|---|
-| `partidos.csv` | os 30 partidos registrados no TSE, com número de legenda e sigla |
-| `candidatos.csv` | 12 candidatos, um por partido, com nomes gerados pelo DataFaker (pt-BR) |
-| `municipios.csv` | 87 municípios cobrindo os 27 estados, com peso de sorteio |
+| `partidos.csv` | the 30 parties registered with the TSE (Brazil's electoral court), with ballot number and acronym |
+| `candidatos.csv` | 12 candidates, one per party, with names generated by DataFaker (pt-BR) |
+| `municipios.csv` | 87 municipalities covering all 27 states, with a sampling weight |
 
-O `candidateId` é o **número da legenda** (13, 22, 45…), como na urna: o eleitor digita o
-número do partido do candidato à presidência. Isso deixa as chaves de
-`results.by-candidate` legíveis sem consultar outra tabela, e o `partyId` é a sigla — então
-`results.by-party` sai como `PT`, `PL`, `NOVO`.
+The `candidateId` is the **party's ballot number** (13, 22, 45…), as on the Brazilian voting
+machine: the voter types the number of the presidential candidate's party. This keeps the keys
+of `results.by-candidate` readable without looking up another table, and `partyId` is the
+acronym — so `results.by-party` comes out as `PT`, `PL`, `NOVO`.
 
-`make bench-data` regenera `candidatos.csv` a partir de `partidos.csv`. A semente é fixa
-(`SEED = 2026`), então regerar produz o mesmo arquivo: se a lista de partidos mudar, dá para
-ver no diff quem entrou e quem saiu, em vez de um arquivo inteiro embaralhado.
+`make bench-data` regenerates `candidatos.csv` from `partidos.csv`. The seed is fixed
+(`SEED = 2026`), so regenerating produces the same file: if the party list changes, the diff
+shows who came in and who left, instead of a whole shuffled file.
 
-### O que é determinístico, e o que não é
+### What is deterministic, and what isn't
 
-O `VoteFeeder` é uma sequência determinística: para a mesma semente, a n-ésima cédula é
-sempre a mesma — mesmo candidato, mesmo município, mesma posição das duplicatas. Qual usuário
-virtual pega qual cédula varia com o escalonamento das threads, mas nenhum agregado depende
-disso: os totais por candidato, estado, cidade e partido são idênticos entre execuções.
+`VoteFeeder` is a deterministic sequence: for the same seed, the n-th ballot is always the
+same — same candidate, same municipality, same position of the duplicates. Which virtual user
+picks up which ballot varies with thread scheduling, but no aggregate depends on that: the
+totals by candidate, state, city and party are identical across runs.
 
-Duas escolhas deliberadas na distribuição:
+Two deliberate choices in the distribution:
 
-- **A intenção de voto é desigual** (28%, 24%, 12%…). Um empate de doze vias não produziria
-  chaves quentes, que é justamente o que estressa o particionamento da apuração.
-- **Os municípios são sorteados por peso populacional.** São Paulo precisa receber mais votos
-  que Rorainópolis, senão `results.by-state` fica uniforme e irreal.
+- **Voting intention is uneven** (28%, 24%, 12%…). A twelve-way tie wouldn't produce hot keys,
+  which is exactly what stresses the tally's partitioning.
+- **Municipalities are drawn by population weight.** São Paulo needs to get more votes than
+  Rorainópolis, otherwise `results.by-state` comes out uniform and unrealistic.
 
-O que **muda** a cada rodada é só o namespace dos eleitores: o `voterId` carrega um `runId`
-com timestamp. Sem isso, a segunda execução contra o mesmo cluster teria todos os votos
-recusados — o dedup do Flink lembra dos eleitores da rodada anterior. Fixe com `-DrunId=...`
-apenas quando quiser exatamente esse cenário.
+The only thing that **changes** on each run is the voter namespace: `voterId` carries a
+timestamped `runId`. Without it, a second run against the same cluster would have every vote
+rejected — Flink's dedup remembers the voters from the previous run. Pin it with `-DrunId=...`
+only when you want exactly that scenario.
 
-## Merkle Tree e prova de inclusão
+## Merkle Tree and inclusion proof
 
-O serviço `voting-merkle` (Go) sela cada janela de tempo numa árvore de Merkle **RFC 6962** —
-a mesma do Certificate Transparency — encadeada com a janela anterior. Com o recibo em mãos,
-o eleitor obtém uma prova de que seu voto entrou na apuração, e pode conferi-la **sem
-confiar no servidor**.
+The `voting-merkle` service (Go) seals each time window into an **RFC 6962** Merkle tree — the
+same one used by Certificate Transparency — chained to the previous window. With the receipt
+in hand, the voter gets a proof that their vote made it into the tally, and can check it
+**without trusting the server**.
 
 ```bash
-curl localhost:8083/proof/$RECIBO   # prova de inclusão + raiz da janela
-make roots                          # a cadeia de raízes já seladas
+curl localhost:8083/proof/$RECEIPT   # inclusion proof + window root
+make roots                           # the chain of roots already sealed
 ```
 
-### Por que ele não lê `votes.receipts`
+### Why it doesn't read `votes.receipts`
 
-Esta é a decisão central do desenho. `votes.receipts` recebe um registro por voto que **chega
-na API**, inclusive os que o Flink recusa depois. Uma árvore construída sobre aquele tópico
-daria prova de inclusão para votos que nunca foram contados — o oposto exato da garantia que
-ela existe para dar.
+This is the central design decision. `votes.receipts` gets one record per vote that **reaches
+the API**, including the ones Flink later rejects. A tree built on that topic would give an
+inclusion proof for votes that were never counted — the exact opposite of the guarantee it
+exists to provide.
 
-A árvore come do fluxo **pós-dedup**: o Flink publica em `votes.accepted` apenas os votos
-admitidos. Verificado na prática: um voto duplicado aparece em `votes.receipts`, é recusado
-como `DUPLICATE_VOTE`, e o serviço responde `404 RECIBO_NAO_SELADO` para o recibo dele.
+The tree feeds on the **post-dedup** stream: Flink publishes to `votes.accepted` only the
+admitted votes. Verified in practice: a duplicate vote shows up in `votes.receipts`, is
+rejected as `DUPLICATE_VOTE`, and the service answers `404 RECIBO_NAO_SELADO` (receipt not
+sealed) for its receipt.
 
-`votes.accepted` também **não carrega o candidato**, pelo mesmo motivo que `votes.receipts`
-não carrega: é a base de uma consulta pública, e viraria um mapa de quem votou em quem.
+`votes.accepted` also **doesn't carry the candidate**, for the same reason `votes.receipts`
+doesn't: it's the basis of a public lookup, and would become a map of who voted for whom.
 
-### Quem fecha a janela
+### Who closes the window
 
-O Flink, e não o serviço Go. Ele já tem marca d'água por horário do voto e exactly-once —
-sabe dizer "a janela [T, T+n) fechou, não chega mais nada". Publica isso em `votes.windows`
-como `{windowId, count}`, e o serviço Go sela quando junta exatamente `count` folhas.
+Flink, not the Go service. It already has a watermark based on vote time and exactly-once — it
+can say "window [T, T+n) is closed, nothing else is coming". It publishes this to
+`votes.windows` as `{windowId, count}`, and the Go service seals once it has gathered exactly
+`count` leaves.
 
-Selar por **completude**, e não por timeout, é o que evita que um consumidor lento produza uma
-raiz divergente da apuração. E se a contagem não fecha, existe uma lacuna — que fica visível,
-em vez de virar uma árvore silenciosamente incompleta.
+Sealing on **completeness**, rather than on a timeout, is what keeps a slow consumer from
+producing a root that diverges from the tally. And if the count doesn't add up, there's a gap
+— which stays visible, instead of becoming a silently incomplete tree.
 
-`votes.windows` tem **uma partição só**, de propósito: a ordem dos marcadores é o que define a
-sequência da cadeia de raízes.
+`votes.windows` has **a single partition**, on purpose: the order of the markers is what
+defines the sequence of the chain of roots.
 
-### O que torna a raiz reproduzível
+### What makes the root reproducible
 
-Dentro de uma janela, as folhas são ordenadas pelo recibo antes de virar árvore. A raiz passa
-a ser função do *conjunto*, e não da ordem de chegada — que varia a cada execução, já que as
-folhas vêm de 6 partições em paralelo. Sem essa ordenação, nenhum auditor conseguiria
-recalcular a raiz.
+Within a window, leaves are sorted by receipt before becoming a tree. The root becomes a
+function of the *set*, not of the arrival order — which varies on every run, since the leaves
+come from 6 partitions in parallel. Without this sorting, no auditor could recompute the root.
 
-Cada checkpoint inclui o hash do anterior:
-
-```
-checkpoint_N = SHA-256(0x02 || checkpoint_{N-1} || raiz_N || windowId || tamanho)
-```
-
-Reescrever uma janela antiga muda todos os elos seguintes: a última raiz publicada compromete
-a história inteira.
-
-### Como o eleitor confere
-
-Com recibo, prova e raiz, a conta é a da RFC 6962 e cabe em vinte linhas em qualquer
-linguagem:
+Each checkpoint includes the hash of the previous one:
 
 ```
-folha = SHA-256(0x00 || bytes(recibo))
-nó    = SHA-256(0x01 || esquerda || direita)
+checkpoint_N = SHA-256(0x02 || checkpoint_{N-1} || root_N || windowId || size)
 ```
 
-Os prefixos `0x00`/`0x01` não são decoração: sem eles, uma folha pode ser forjada para se
-passar por um nó interno (ataque de segunda pré-imagem). O `0x02` da cadeia existe pelo mesmo
-motivo, para que um elo não colida com um nó de árvore.
+Rewriting an old window changes every link after it: the latest published root commits to the
+entire history.
 
-Uma rodada real: 4 janelas seladas (12+7+7+7 folhas), prova conferida por um verificador
-independente escrito em Python — folha forjada rejeitada, caminho adulterado rejeitado, cadeia
-íntegra.
+### How the voter checks
 
-### A tela do eleitor
+With receipt, proof and root, the math is RFC 6962's and fits in twenty lines in any language:
 
-`voting-web` é a página onde o comprovante é conferido — e o ponto dela é que a **verificação
-roda no navegador do eleitor**, não no servidor.
+```
+leaf = SHA-256(0x00 || bytes(receipt))
+node = SHA-256(0x01 || left || right)
+```
+
+The `0x00`/`0x01` prefixes aren't decoration: without them, a leaf can be forged to pass as an
+internal node (second-preimage attack). The chain's `0x02` exists for the same reason, so that
+a link can't collide with a tree node.
+
+A real run: 4 windows sealed (12+7+7+7 leaves), proof checked by an independent verifier
+written in Python — forged leaf rejected, tampered path rejected, chain intact.
+
+### The voter's screen
+
+`voting-web` is the page where the receipt is checked — and its whole point is that
+**verification runs in the voter's browser**, not on the server.
 
 ```bash
 make up   # http://localhost:8084
 ```
 
-O serviço Go entrega recibo, prova e raiz. Quem refaz a conta da RFC 6962 e decide se ela
-fecha é `voting-web/public/verify.js`, na máquina de quem perguntou. Um servidor que quisesse
-mentir teria de forjar SHA-256.
+The Go service delivers receipt, proof and root. Redoing the RFC 6962 math and deciding whether
+it adds up is the job of `voting-web/public/verify.js`, on the machine of whoever asked. A
+server that wanted to lie would have to forge SHA-256.
 
-Não há build, framework nem CDN: quatro arquivos servidos por nginx, sem bundler nem
-minificação. Isso não é minimalismo por gosto — é o que permite afirmar que o código auditado
-é o código executado. O nginx também encaminha `/api` para o serviço Go, para que a página não
-dependa de CORS configurado do outro lado.
+There's no build, framework or CDN: four files served by nginx, with no bundler or
+minification. That isn't minimalism for taste — it's what makes it possible to claim that the
+audited code is the code that runs. nginx also forwards `/api` to the Go service, so the page
+doesn't depend on CORS being configured on the other side.
 
-Os testes (`make test-web`, sem `npm install` — não há dependência) **não** conferem o
-verificador contra ele mesmo: os vetores saem de `pkg/checkpoint`, a implementação em Go. Uma
-segunda implementação do mesmo algoritmo só vale se for confrontada com a primeira. Além das
-provas válidas, cobrem folha forjada, caminho adulterado, raiz de outra janela, caminho mais
-longo e mais curto que a árvore, índice fora dela, e uma janela reescrita no meio da cadeia.
+The tests (`make test-web`, with no `npm install` — there are no dependencies) do **not** check
+the verifier against itself: the vectors come from `pkg/checkpoint`, the Go implementation. A
+second implementation of the same algorithm is only worth something if it's checked against
+the first. Besides valid proofs, they cover a forged leaf, a tampered path, a root from another
+window, a path longer and shorter than the tree, an index outside it, and a window rewritten in
+the middle of the chain.
 
-O que só existe no navegador tem sua própria verificação, à parte porque precisa de
-dependência (`cd voting-web && npm run test:browser`, com Playwright e Chrome): sobe um stub
-com o contrato de `/proof` e `/roots` e dirige o Chrome pela página. A verificação que
-justifica esse arquivo é a de **servidor desonesto** — o stub devolve uma prova adulterada, e
-a tela tem de rejeitá-la na máquina do eleitor.
+What only exists in the browser has its own check, kept separate because it needs dependencies
+(`cd voting-web && npm run test:browser`, with Playwright and Chrome): it starts a stub with the
+`/proof` and `/roots` contract and drives Chrome through the page. The check that justifies
+this file is the **dishonest server** one — the stub returns a tampered proof, and the screen
+has to reject it on the voter's machine.
 
-A tela também se recusa a dizer o que não sabe. Um recibo sem prova tem três explicações —
-janela ainda aberta, voto recusado por duplicidade, recibo inexistente — e ela diz as três, em
-vez de deixar o eleitor concluir a pior. E o veredito positivo vem com a ressalva que fecha o
-raciocínio: prova e raiz vieram do mesmo servidor, então a conta prova inclusão *naquela*
-raiz; confirmar que é a raiz publicada é comparar o hash do checkpoint com o de `merkle.roots`
-ou com o de outro observador. O botão de conferir a cadeia refaz todos os elos, do genesis à
-última raiz, e aponta a janela exata onde ela quebraria.
+The screen also refuses to say what it doesn't know. A receipt without a proof has three
+explanations — window still open, vote rejected as a duplicate, receipt doesn't exist — and it
+states all three, instead of letting the voter assume the worst. And the positive verdict comes
+with the caveat that completes the reasoning: proof and root came from the same server, so the
+math proves inclusion in *that* root; confirming it's the published root means comparing the
+checkpoint hash with the one in `merkle.roots` or with another observer's. The check-the-chain
+button redoes every link, from genesis to the latest root, and points to the exact window where
+it would break.
 
-### Estrutura do módulo Go
+### Go module structure
 
-O pedido era ser o mais agnóstico possível, então o núcleo não sabe o que é um voto:
+The goal was to be as agnostic as possible, so the core doesn't know what a vote is:
 
-| Pacote | Sabe sobre |
+| Package | Knows about |
 |---|---|
-| `pkg/merkle` | árvores e provas. **Zero dependências**, zero vocabulário de eleição. |
-| `pkg/checkpoint` | lotes de folhas opacas, selados e encadeados. Depende só de `pkg/merkle`. |
-| `pkg/wal` | um log append-only durável de registros opacos. **Zero dependências**. |
-| `pkg/journal` | grava os fatos da cadeia no `pkg/wal`. É a implementação de `checkpoint.Store`. |
-| `internal/voting` | os eventos da votação e como viram folhas. |
-| `internal/kafkaio` | o único pacote que sabe que o transporte é Kafka. |
+| `pkg/merkle` | trees and proofs. **Zero dependencies**, zero election vocabulary. |
+| `pkg/checkpoint` | batches of opaque leaves, sealed and chained. Depends only on `pkg/merkle`. |
+| `pkg/wal` | a durable append-only log of opaque records. **Zero dependencies**. |
+| `pkg/journal` | writes the chain's facts to `pkg/wal`. It's the implementation of `checkpoint.Store`. |
+| `internal/voting` | the voting events and how they become leaves. |
+| `internal/kafkaio` | the only package that knows the transport is Kafka. |
 | `internal/api` | HTTP. |
 
-`pkg/checkpoint` define a interface `Store` e não sabe o que há do outro lado — um arquivo,
-um banco, um teste em memória. Continua dependendo só de `pkg/merkle`.
+`pkg/checkpoint` defines the `Store` interface and doesn't know what's on the other side — a
+file, a database, an in-memory test. It still depends only on `pkg/merkle`.
 
-Há ainda `cmd/vetores`, uma ferramenta de desenvolvimento: emite os vetores de teste que o
-verificador do navegador consome (`make web-vetores`). Existe para que a implementação em
-JavaScript seja confrontada com esta, e não consigo mesma.
+There's also `cmd/vetores`, a development tool: it emits the test vectors the browser verifier
+consumes (`make web-vetores`). It exists so that the JavaScript implementation is checked
+against this one, and not against itself.
 
-### Desempenho
+### Performance
 
 ```bash
 cd voting-merkle && go test ./pkg/... -run '^$' -bench . -benchtime 200x
 ```
 
-Os benchmarks cobrem os caminhos que importam: selar uma janela (`New`, `Seal`), servir uma
-prova (`Prove`, `Lookup`) e gravar e retomar a cadeia (`Append`, `Sync`, `Restore`), em lotes
-de 1 mil a 100 mil folhas. Os números da persistência estão na seção dela, mais abaixo.
+The benchmarks cover the paths that matter: sealing a window (`New`, `Seal`), serving a proof
+(`Prove`, `Lookup`) and writing and restoring the chain (`Append`, `Sync`, `Restore`), in
+batches of 1 thousand to 100 thousand leaves. The persistence numbers are in its own section,
+further below.
 
-Medido com profadvisor, em capturas adjacentes, num lote de 100 mil folhas:
+Measured with profadvisor, in adjacent captures, on a batch of 100 thousand leaves:
 
-| | antes | depois | alocações |
+| | before | after | allocations |
 |---|---|---|---|
-| `Prove` | 14,86 ms | **226 ns** | 99.988 → 1 |
-| `New` | 24,99 ms | **20,58 ms** | 200.001 → 42 |
+| `Prove` | 14.86 ms | **226 ns** | 99,988 → 1 |
+| `New` | 24.99 ms | **20.58 ms** | 200,001 → 42 |
 
-A `Tree` guardava apenas as folhas e a raiz, então **cada prova reconstruía os nós internos do
-zero** — O(n) hashes para responder a um único eleitor. Materializando os níveis na construção,
-a prova virou um passeio de O(log n) leituras, sem hash nenhum. O custo é dobrar a memória da
-árvore (2n hashes em vez de n): 6 MB para 100 mil folhas.
+The `Tree` used to keep only the leaves and the root, so **every proof rebuilt the internal
+nodes from scratch** — O(n) hashes to answer a single voter. By materializing the levels at
+construction, the proof became a walk of O(log n) reads, with no hashing at all. The cost is
+doubling the tree's memory (2n hashes instead of n): 6 MB for 100 thousand leaves.
 
-O ganho em `New` vem de reaproveitar o hasher e alocar um buffer por nível, em vez de um digest
-por nó.
+The gain in `New` comes from reusing the hasher and allocating one buffer per level, instead of
+one digest per node.
 
-#### Como medir sem se enganar
+#### How to measure without fooling yourself
 
-O piso de ruído desta máquina foi medido com um teste A/A — duas capturas do **mesmo código**,
-em que qualquer diferença é artefato:
+This machine's noise floor was measured with an A/A test — two captures of the **same code**,
+where any difference is an artifact:
 
-| escala do benchmark | desvio A/A | confiável? |
+| benchmark scale | A/A deviation | reliable? |
 |---|---|---|
-| `New`, milissegundos | ±0,4 a 2,5% | sim |
-| `Verify`, microssegundos | ±0,2 a 1,1% | sim |
-| `Prove`, nanossegundos, `-benchtime 200x` | ±10 a 20% | **não** |
-| `Prove`, nanossegundos, `-benchtime 200000x` | ±0,05 a 0,31% | sim (até 10 mil folhas) |
-| `Prove`, 100 mil folhas, qualquer benchtime | ±10% | **não** |
+| `New`, milliseconds | ±0.4 to 2.5% | yes |
+| `Verify`, microseconds | ±0.2 to 1.1% | yes |
+| `Prove`, nanoseconds, `-benchtime 200x` | ±10 to 20% | **no** |
+| `Prove`, nanoseconds, `-benchtime 200000x` | ±0.05 to 0.31% | yes (up to 10 thousand leaves) |
+| `Prove`, 100 thousand leaves, any benchtime | ±10% | **no** |
 
-Duas armadilhas, nessa ordem:
+Two traps, in this order:
 
-**`-benchtime` baixo demais para operações de nanossegundos.** Com `200x`, uma operação de
-150 ns dá 30 µs de trabalho por amostra — o overhead do timer domina, e o p-valor declara
-significativa uma diferença que é só jitter. O p-valor mede se as duas amostras diferem, não se
-a mudança causou a diferença.
+**`-benchtime` too low for nanosecond operations.** With `200x`, a 150 ns operation gives 30 µs
+of work per sample — timer overhead dominates, and the p-value declares significant a
+difference that is just jitter. The p-value measures whether the two samples differ, not
+whether the change caused the difference.
 
-**Capturas separadas no tempo.** Com carga de máquina variando entre elas, o mesmo código já
-apareceu 33% mais lento. Meça sempre as duas variantes em sequência.
+**Captures separated in time.** With machine load varying between them, the same code has shown
+up 33% slower. Always measure both variants back to back.
 
-O caso de 100 mil folhas não estabiliza com mais iterações: os níveis somam ~6,4 MB, maior que
-o L2, e a prova toca um nó por nível em endereços espalhados. Nessa escala `Prove` é limitado
-por cache miss, não por computação — a variância vem do estado de cache entre processos.
+The 100-thousand-leaf case doesn't stabilize with more iterations: the levels add up to
+~6.4 MB, larger than L2, and the proof touches one node per level at scattered addresses. At
+that scale `Prove` is bound by cache misses, not computation — the variance comes from the
+cache state between processes.
 
-### Persistência: o diário da cadeia
+### Persistence: the chain journal
 
-A cadeia mora em disco, num log append-only (`/var/lib/merkle/chain.wal`) com três tipos de
-registro: uma folha entrou num lote, um lote foi anunciado com um total, um lote foi selado.
-Nada é atualizado nem apagado — reescrever o passado é exatamente o que a cadeia de hashes
-existe para denunciar.
+The chain lives on disk, in an append-only log (`/var/lib/merkle/chain.wal`) with three record
+types: a leaf entered a batch, a batch was announced with a total, a batch was sealed. Nothing
+is updated or deleted — rewriting the past is exactly what the hash chain exists to expose.
 
 ```bash
-make chain            # storeId do diário, cabeça da cadeia, janelas abertas
-make restart-merkle   # derruba e sobe só o serviço: a cadeia volta do disco
+make chain            # journal storeId, chain head, open windows
+make restart-merkle   # stops and starts only the service: the chain comes back from disk
 ```
 
-#### A partida é uma auditoria do próprio disco
+#### Startup is an audit of its own disk
 
-A retomada **não** confia no que está gravado: ela relê as folhas de cada lote, reconstrói a
-árvore e recalcula raiz e elo, conferindo contra o selo registrado. Se um byte de uma folha
-mudou no disco, a raiz recalculada diverge e o serviço **não sobe**.
+Restoring does **not** trust what's written: it rereads each batch's leaves, rebuilds the tree
+and recomputes root and link, checking them against the recorded seal. If one byte of a leaf
+changed on disk, the recomputed root diverges and the service **doesn't start**.
 
-A alternativa — guardar a raiz e servi-la — trocaria uma falha barulhenta na partida por
-provas erradas servidas com confiança, possivelmente meses depois. Guardar as folhas custa
-espaço; guardar só a raiz custa a própria garantia.
+The alternative — store the root and serve it — would trade a loud failure at startup for wrong
+proofs served confidently, possibly months later. Storing the leaves costs space; storing only
+the root costs the guarantee itself.
 
-O `pkg/wal` faz a distinção que importa antes disso: um registro que acaba **antes** do que
-promete é o rastro de uma queda no meio de um append — o arquivo é truncado ali, e a operação
-perdida volta pela reentrega do Kafka. Um registro completo com **CRC errado** é outra coisa:
-os bytes chegaram e estão errados. Isso é erro, não rabo torto. Tratar os dois como a mesma
-coisa descartaria em silêncio tudo dali para frente.
+`pkg/wal` makes the distinction that matters before that: a record that ends **before** what it
+promises is the trace of a crash in the middle of an append — the file is truncated there, and
+the lost operation comes back through Kafka's redelivery. A complete record with a **wrong CRC**
+is something else: the bytes arrived and they're wrong. That's an error, not a ragged tail.
+Treating both the same would silently discard everything from there on.
 
-#### Retomar o consumo sem abrir buracos
+#### Resuming consumption without leaving gaps
 
-Com a cadeia em disco, o consumidor pode enfim retomar de um offset salvo. Duas regras fazem
-isso ser seguro:
+With the chain on disk, the consumer can finally resume from a saved offset. Two rules make
+this safe:
 
-**O offset só avança depois do `fsync`.** Quem confirma o consumo é quem acabou de ver o
-diário chegar ao disco, e o commit é sempre manual — nunca em segundo plano por intervalo,
-que poderia passar na frente do `fsync`. Enquanto essa ordem valer, um offset confirmado
-significa "estas folhas estão gravadas". Invertida, uma queda deixaria o Kafka achando que
-aquelas folhas já foram tratadas, e a janela seria selada **sem elas** — o buraco silencioso
-que a versão anterior evitava relendo tudo.
+**The offset only advances after the `fsync`.** Whoever confirms consumption is whoever just saw
+the journal reach the disk, and the commit is always manual — never in the background on an
+interval, which could get ahead of the `fsync`. As long as this order holds, a committed offset
+means "these leaves are written". Reversed, a crash would leave Kafka thinking those leaves had
+already been handled, and the window would be sealed **without them** — the silent gap the
+previous version avoided by rereading everything.
 
-**O nome do grupo carrega a identidade do diário.** O arquivo sorteia um id na criação, e o
-grupo de consumo é `merkle-service-<id>`. Enquanto o volume sobreviver, o grupo é o mesmo e o
-consumo continua de onde parou. Se o volume for perdido, o diário nasce com id novo, o grupo
-também é novo, e a leitura recomeça do início dos tópicos — que é o correto, porque não há
-estado local a que o offset antigo correspondesse. Um grupo de nome fixo é justamente o que
-produziria a árvore com buracos.
+**The group name carries the journal's identity.** The file draws a random id on creation, and
+the consumer group is `merkle-service-<id>`. As long as the volume survives, the group is the
+same and consumption continues where it left off. If the volume is lost, the journal is born
+with a new id, the group is new too, and reading restarts from the beginning of the topics —
+which is correct, because there's no local state the old offset would correspond to. A
+fixed-name group is exactly what would produce the tree with gaps.
 
-A raiz também só é publicada em `merkle.roots` **depois** do `fsync` do selo: não se anuncia
-publicamente um compromisso que ainda pode sumir num restart. São poucos `fsync` (um por
-janela), e eles vêm antes do anúncio.
+The root is also only published to `merkle.roots` **after** the seal's `fsync`: you don't
+publicly announce a commitment that can still disappear on a restart. There are few `fsync`s
+(one per window), and they come before the announcement.
 
-#### O que a retomada custa
+#### What restoring costs
 
 ```bash
 cd voting-merkle && go test ./pkg/journal -run '^$' -bench . -benchtime 30x
 ```
 
-| | custo | onde pesa |
+| | cost | where it weighs |
 |---|---|---|
-| gravar uma folha | 327 ns, 1 alocação | por voto, sem `fsync` |
-| `fsync` de um lote de 256 folhas | ~7 ms | ~27 µs por voto, amortizado |
-| retomar 100 mil folhas do disco | **~65 ms** | uma vez, na partida |
+| write one leaf | 327 ns, 1 allocation | per vote, no `fsync` |
+| `fsync` of a 256-leaf batch | ~7 ms | ~27 µs per vote, amortized |
+| restore 100 thousand leaves from disk | **~65 ms** | once, at startup |
 
-Os 65 ms incluem reconstruir cada árvore e reconferir cada raiz. É a comparação que justifica
-o trabalho: no lugar de reler dois tópicos do Kafka desde o início, a partida lê um arquivo
-local sequencialmente.
+The 65 ms include rebuilding each tree and rechecking each root. That's the comparison that
+justifies the work: instead of rereading two Kafka topics from the beginning, startup reads a
+local file sequentially.
 
-#### O que continua valendo
+#### What still holds
 
-O volume não é a fonte da verdade, e perdê-lo não perde a apuração: `votes.accepted` e
-`votes.windows` continuam sendo, e a reconstrução completa continua funcionando — só é lenta.
-`merkle.roots` segue compactado, então um auditor externo reconstrói a cadeia publicada sem
-falar com o serviço.
+The volume isn't the source of truth, and losing it doesn't lose the tally: `votes.accepted` and
+`votes.windows` still are, and the full rebuild still works — it's just slow. `merkle.roots`
+stays compacted, so an external auditor rebuilds the published chain without talking to the
+service.
 
-O limite que **não** foi resolvido é a memória: as árvores continuam inteiras em RAM para
-servir provas em O(log n), então o processo ainda cresce com o número de votos. Servir provas
-direto do disco é outro trabalho, e outra escolha de desempenho.
+The limit that was **not** solved is memory: the trees stay whole in RAM to serve proofs in
+O(log n), so the process still grows with the number of votes. Serving proofs straight from
+disk is another piece of work, and another performance trade-off.
 
-## Garantias
+## Guarantees
 
-- **Um voto por eleitor** — estado por `voterId` no Flink. O segundo voto vai para
-  `votes.rejected` com o motivo e o recibo do voto que de fato vale.
-- **Nada é descartado em silêncio** — duplicatas, votos de outra eleição e eventos que violam
-  as invariantes viram rejeições auditáveis. Só JSON ilegível é descartado (com log e o
-  contador `corruptRecords`), para que uma mensagem corrompida não vire um loop de restart.
-- **Exactly-once** — checkpointing a cada 10s e sinks transacionais. As contagens são
-  acumulativas: com `at-least-once`, um restart reprocessaria votos já contados e o placar
-  inflaria. Custa latência — os resultados aparecem ao fim de cada checkpoint. Desligue com
-  `--exactly.once false` se quiser latência menor em desenvolvimento.
-- **O voto só é confirmado depois do ack do Kafka** — a publicação na ingestão é síncrona,
-  com `acks=all` e idempotência. Um `503` significa "o voto está bom, o sistema é que não
-  conseguiu registrá-lo"; reenviar é seguro, porque a duplicata seria filtrada na apuração.
-- **Prova de inclusão auditável** — cada janela é selada numa árvore RFC 6962 com raiz
-  encadeada à anterior. O eleitor confere seu recibo sem confiar no servidor.
-- **O prazo é do servidor** — `castAt` é carimbado na chegada e não existe no contrato HTTP.
-  A autoridade sobre o encerramento é o Flink, não a borda.
+- **One vote per voter** — state per `voterId` in Flink. The second vote goes to
+  `votes.rejected` with the reason and the receipt of the vote that actually counts.
+- **Nothing is silently dropped** — duplicates, votes from another election and events that
+  violate the invariants become auditable rejections. Only unreadable JSON is dropped (with a
+  log and the `corruptRecords` counter), so that a corrupted message doesn't become a restart
+  loop.
+- **Exactly-once** — checkpointing every 10s and transactional sinks. The counts are
+  cumulative: with `at-least-once`, a restart would reprocess votes already counted and the
+  scoreboard would inflate. It costs latency — results show up at the end of each checkpoint.
+  Turn it off with `--exactly.once false` if you want lower latency in development.
+- **A vote is only confirmed after Kafka's ack** — publishing at ingestion is synchronous, with
+  `acks=all` and idempotence. A `503` means "the vote is fine, the system just couldn't record
+  it"; resending is safe, because the duplicate would be filtered at tallying.
+- **Auditable inclusion proof** — each window is sealed in an RFC 6962 tree with a root chained
+  to the previous one. The voter checks their receipt without trusting the server.
+- **The deadline belongs to the server** — `castAt` is stamped on arrival and doesn't exist in
+  the HTTP contract. The authority over closing is Flink, not the edge.
 
-### Verificado na prática
+### Verified in practice
 
-| Garantia | Evidência |
+| Guarantee | Evidence |
 |---|---|
-| Um voto por eleitor | 11.001 requisições, 10.000 eleitores → apuração fechou em 8.986 (os distintos), 1.014 recusas |
-| Exactly-once | `restart taskmanager` durante a carga: contagens não inflaram, estado do dedup preservado |
-| Prova de inclusão | verificador independente em Python: prova válida aceita, folha forjada e caminho adulterado rejeitados |
-| Duplicata sem prova | recibo do voto duplicado existe em `votes.receipts`, é recusado, e recebe `404` do serviço de prova |
-| Encerramento | voto injetado direto no Kafka com `castAt` após o prazo → `ELECTION_CLOSED` |
-| Janela sem tráfego | voto solitário selado em ~45s pelos heartbeats (antes: `404` indefinidamente) |
-| Verificação no navegador | 14 verificações num Chrome real (`npm run test:browser`): prova adulterada **pelo servidor** rejeitada na máquina do eleitor, cadeia reescrita apontada na janela certa |
-| Retomada da cadeia | testes de `pkg/journal`: raízes, elos e provas reconstruídos do disco; uma folha adulterada no arquivo impede a partida |
+| One vote per voter | 11,001 requests, 10,000 voters → tally closed at 8,986 (the distinct ones), 1,014 rejections |
+| Exactly-once | `restart taskmanager` during the load: counts didn't inflate, dedup state preserved |
+| Inclusion proof | independent verifier in Python: valid proof accepted, forged leaf and tampered path rejected |
+| Duplicate without proof | the duplicate vote's receipt exists in `votes.receipts`, is rejected, and gets a `404` from the proof service |
+| Closing | vote injected straight into Kafka with `castAt` after the deadline → `ELECTION_CLOSED` |
+| Window without traffic | a lone vote sealed in ~45s thanks to the heartbeats (before: `404` indefinitely) |
+| Verification in the browser | 14 checks in a real Chrome (`npm run test:browser`): proof tampered **by the server** rejected on the voter's machine, rewritten chain flagged at the right window |
+| Chain restore | `pkg/journal` tests: roots, links and proofs rebuilt from disk; a tampered leaf in the file prevents startup |
 
-As duas últimas linhas foram verificadas fora do cluster — a primeira contra um stub com o
-contrato de `/proof` e `/roots`, a segunda no nível dos pacotes. O restart do serviço Merkle
-contra o cluster de pé (`make restart-merkle`) ainda não foi exercitado numa rodada real.
+The last two rows were verified outside the cluster — the first against a stub with the
+`/proof` and `/roots` contract, the second at the package level. Restarting the Merkle service
+against the running cluster (`make restart-merkle`) hasn't been exercised in a real run yet.
 
-## Nota de privacidade sobre o recibo
+## Privacy note on the receipt
 
-O recibo é `SHA-256(electionId | voterId | candidateId | castAt | pepper)`, com o `pepper`
-sendo um segredo do servidor.
+The receipt is `SHA-256(electionId | voterId | candidateId | castAt | pepper)`, where the
+`pepper` is a server secret.
 
-**O `pepper` é o que impede a quebra do sigilo.** Sem ele, o espaço de candidatos é pequeno o
-bastante para que qualquer pessoa que conheça o `voterId` recalcule o hash para cada candidato
-e descubra o voto. Em produção o `pepper` vem do ambiente (`VOTING_RECEIPT_PEPPER`) e nunca do
-repositório — o valor no `docker-compose.yml` serve apenas para desenvolvimento.
+**The `pepper` is what prevents breaking ballot secrecy.** Without it, the candidate space is
+small enough that anyone who knows the `voterId` could recompute the hash for each candidate and
+find out the vote. In production the `pepper` comes from the environment
+(`VOTING_RECEIPT_PEPPER`) and never from the repository — the value in `docker-compose.yml` is
+for development only.
 
-Mesmo com o `pepper`, o desenho tem um limite conhecido: quem obtiver o segredo do servidor
-consegue reconstruir o voto de qualquer eleitor. A próxima fase deve migrar para um
-*commitment* com nonce aleatório por voto, guardado apenas com o eleitor. Por isso
-`votes.receipts` deliberadamente **não** carrega o candidato — um tópico que ligasse recibo a
-candidato seria um mapa do voto de cada eleitor.
+Even with the `pepper`, the design has a known limit: whoever obtains the server secret can
+reconstruct any voter's vote. The next phase should move to a *commitment* with a random nonce
+per vote, kept only by the voter. That's why `votes.receipts` deliberately does **not** carry
+the candidate — a topic linking receipt to candidate would be a map of every voter's vote.
 
-## Próximas fases
+## Next phases
 
-1. **Provas servidas do disco.** A persistência resolveu o tempo de partida, não a memória:
-   as árvores continuam inteiras em RAM. Um índice de folha para posição em disco tiraria o
-   teto de votos por processo.
-2. **Prova de consistência entre raízes** (`GET /consistency?from=N&to=M`), provando que uma
-   árvore é extensão da outra e que nada foi reescrito no meio.
-3. **Agregação por janela antes de publicar.** Hoje cada voto emite uma atualização de
-   contagem — volumoso demais para uma eleição real. A janela da Merkle Tree já existe e
-   resolve.
-4. **Tolerância de atraso no encerramento.** Hoje o prazo é estrito: vale o `castAt`
-   carimbado, sem folga. Um voto legítimo com latência alta na fronteira é recusado. A folga
-   seria um campo em `ElectionSchedule`, e precisa ser menor que o intervalo até a publicação
-   da raiz final.
+1. **Proofs served from disk.** Persistence solved startup time, not memory: the trees stay
+   whole in RAM. A leaf-to-disk-position index would remove the ceiling on votes per process.
+2. **Consistency proof between roots** (`GET /consistency?from=N&to=M`), proving that one tree
+   is an extension of the other and that nothing was rewritten in the middle.
+3. **Per-window aggregation before publishing.** Today every vote emits a count update — too
+   much volume for a real election. The Merkle Tree window already exists and solves this.
+4. **Lateness tolerance at closing.** Today the deadline is strict: the stamped `castAt`
+   counts, with no slack. A legitimate vote with high latency at the boundary is rejected. The
+   slack would be a field in `ElectionSchedule`, and needs to be smaller than the interval until
+   the final root is published.
 
-## Notas de implementação
+## Implementation notes
 
-- Os contratos são `record`s, que não satisfazem o contrato de POJO do Flink. Em vez de cair
-  no Kryo (que não instancia records), o job usa `JsonTypeInfo`/`JsonTypeSerializer`: o mesmo
-  JSON do tópico também entre operadores e no estado. Um só formato para depurar, e estado que
-  sobrevive à adição de campos. Se o volume tornar isso caro, o caminho é um formato binário
-  nos contratos — não um remendo no serializador.
-- `transaction.timeout.ms` dos sinks (900000) precisa ser ≤ `transaction.max.timeout.ms` do
-  broker, senão o produtor transacional é recusado e o job não sobe. Os dois estão fixados no
-  `docker-compose.yml`.
-- A imagem do Flink é customizada (`infra/flink/Dockerfile`) apenas para que
-  `/flink-checkpoints` pertença ao usuário `flink` — sem isso o volume nomeado nasce como root
-  e o JobManager falha ao criar o checkpoint.
+- The contracts are `record`s, which don't satisfy Flink's POJO contract. Instead of falling
+  back to Kryo (which can't instantiate records), the job uses `JsonTypeInfo`/
+  `JsonTypeSerializer`: the same JSON as the topic, also between operators and in state. One
+  format to debug, and state that survives adding fields. If the volume makes this expensive,
+  the way forward is a binary format in the contracts — not a patch in the serializer.
+- The sinks' `transaction.timeout.ms` (900000) must be ≤ the broker's
+  `transaction.max.timeout.ms`, otherwise the transactional producer is refused and the job
+  doesn't start. Both are pinned in `docker-compose.yml`.
+- The Flink image is customized (`infra/flink/Dockerfile`) only so that `/flink-checkpoints`
+  belongs to the `flink` user — without it the named volume is created as root and the
+  JobManager fails to create the checkpoint.
 
-## Encerramento da votação
+## Closing the vote
 
 ```bash
 VOTING_OPENS_AT=2026-10-04T11:00:00Z VOTING_CLOSES_AT=2026-10-04T20:00:00Z make up
@@ -526,81 +528,80 @@ make submit JOB_ARGS="--bootstrap.servers kafka:9092 \
   --election.opens.at 2026-10-04T11:00:00Z --election.closes.at 2026-10-04T20:00:00Z"
 ```
 
-Sem as duas variáveis, a eleição não tem prazo — conveniente em desenvolvimento, e um erro de
-operação em produção.
+Without these two variables, the election has no deadline — convenient in development, and an
+operational mistake in production.
 
-### O horário do voto é do servidor
+### The vote time belongs to the server
 
-`castAt` **não existe no contrato HTTP**. O servidor carimba o momento da chegada e ignora
-qualquer campo que o cliente mande. Enviar `"castAt":"2026-10-04T12:00:00Z"` num POST depois do
-prazo continua devolvendo `403`.
+`castAt` **doesn't exist in the HTTP contract**. The server stamps the moment of arrival and
+ignores any field the client sends. Sending `"castAt":"2026-10-04T12:00:00Z"` in a POST after the
+deadline still returns `403`.
 
-Não há como saber o instante do clique sem confiar no relógio do dispositivo, e confiar nele
-tornaria o encerramento contornável por antedatação. O preço é que o carimbo inclui a latência
-de rede — diferença sub-segundo, relevante apenas na fronteira do prazo.
+There's no way to know the moment of the click without trusting the device's clock, and trusting
+it would make closing bypassable by backdating. The price is that the stamp includes network
+latency — a sub-second difference, relevant only at the deadline boundary.
 
-A sentinela de encerramento é carimbada em `closesAt + voting.closing-margin-ms` (30s por
-padrão), e **não** no instante em que o agendador acorda. O agendador dispara em algum ponto
-dentro do seu intervalo; herdar esse atraso deixaria a sentinela com um horário diferente a
-cada execução, e esse horário entra no log — a fonte a partir da qual as raízes são
-reproduzidas. A margem também precisa exceder o `watermark.out.of.orderness.ms` do job (5s por
-padrão): a marca d'água é `maior_horário_visto − out_of_orderness`, então uma sentinela perto
-demais do fechamento deixaria a última janela sem fechar.
+The closing sentinel is stamped at `closesAt + voting.closing-margin-ms` (30s by default), and
+**not** at the moment the scheduler wakes up. The scheduler fires at some point within its
+interval; inheriting that delay would give the sentinel a different time on every run, and that
+time goes into the log — the source from which the roots are reproduced. The margin also needs
+to exceed the job's `watermark.out.of.orderness.ms` (5s by default): the watermark is
+`latest_time_seen − out_of_orderness`, so a sentinel too close to the closing would leave the
+last window unclosed.
 
-### Duas camadas, uma autoridade
+### Two layers, one authority
 
-A API recusa com `403 VOTACAO_FECHADA` por cortesia, para o eleitor não receber um comprovante
-que a apuração vai descartar. **A autoridade é o Flink**, pelo mesmo motivo que já é para a
-unicidade: é o ponto único que vê todos os votos com um relógio só.
+The API rejects with `403 VOTACAO_FECHADA` (voting closed) as a courtesy, so the voter doesn't
+get a receipt the tally will discard. **The authority is Flink**, for the same reason it already
+is for uniqueness: it's the single point that sees every vote with a single clock.
 
-Verificado injetando um voto direto no Kafka, driblando a API por completo, com `castAt` cinco
-segundos após o prazo — o Flink o recusou como `ELECTION_CLOSED` em `votes.rejected`.
+Verified by injecting a vote straight into Kafka, bypassing the API entirely, with `castAt` five
+seconds after the deadline — Flink rejected it as `ELECTION_CLOSED` in `votes.rejected`.
 
-`ELECTION_NOT_OPEN` é um motivo separado de `ELECTION_CLOSED`: as duas situações pedem
-investigações diferentes — uma sugere relógio adiantado, a outra é o caso normal de quem votou
-tarde demais.
+`ELECTION_NOT_OPEN` is a separate reason from `ELECTION_CLOSED`: the two situations call for
+different investigations — one suggests a clock running ahead, the other is the normal case of
+someone who voted too late.
 
-## O travamento da marca d'água, e por que heartbeats
+## The watermark stall, and why heartbeats
 
-Este foi o problema mais sutil do sistema, e vale registrar por inteiro.
+This was the subtlest problem in the system, and it's worth recording in full.
 
-A marca d'água do Flink é derivada **do dado**: `forBoundedOutOfOrderness(5s)` emite
-`maior_castAt_visto - 5s`. Sem evento novo, não há novo máximo, e ela congela. A janela só
-dispara quando a marca d'água passa o fim dela — que nunca chega.
+Flink's watermark is derived **from the data**: `forBoundedOutOfOrderness(5s)` emits
+`latest_castAt_seen - 5s`. Without a new event, there's no new maximum, and it freezes. The
+window only fires when the watermark passes its end — which never comes.
 
-Consequência medida antes da correção: **um voto solitário nunca era selado**. Noventa
-segundos, seis verificações, `404` em todas. O eleitor jamais receberia prova de inclusão. E
-isso acontecia justamente no momento mais crítico — a cauda de uma eleição, logo antes do
-encerramento.
+Consequence measured before the fix: **a lone vote was never sealed**. Ninety seconds, six
+checks, `404` on every one. The voter would never get an inclusion proof. And this happened
+precisely at the most critical moment — the tail of an election, right before closing.
 
-`withIdleness(30s)` **não resolve**, ao contrário do que o nome sugere: ele marca uma
-*partição* como ociosa para que ela não segure a marca d'água combinada das outras. Quando
-todas estão ociosas, a marca d'água simplesmente para.
+`withIdleness(30s)` **doesn't solve it**, despite what the name suggests: it marks a
+*partition* as idle so it doesn't hold back the combined watermark of the others. When all of
+them are idle, the watermark simply stops.
 
-### A correção óbvia destruiria a auditoria
+### The obvious fix would destroy auditability
 
-O reflexo é usar `ProcessingTimeoutTrigger`, que dispara a janela por tempo de processamento.
-Funciona — e quebra a Merkle Tree. O conteúdo de cada janela passaria a depender do relógio de
-parede durante o processamento: dois reprocessamentos do mesmo log, em máquinas de velocidades
-diferentes, cortariam as janelas em pontos diferentes e produziriam **raízes diferentes**. Uma
-raiz que não é reproduzível não prova nada.
+The reflex is to use `ProcessingTimeoutTrigger`, which fires the window on processing time. It
+works — and breaks the Merkle Tree. The content of each window would then depend on the wall
+clock during processing: two reprocessings of the same log, on machines of different speeds,
+would cut the windows at different points and produce **different roots**. A root that isn't
+reproducible proves nothing.
 
-### A correção: o tempo vira dado
+### The fix: time becomes data
 
-`votes.control` não traz votos, traz o tempo:
+`votes.control` doesn't carry votes, it carries time:
 
-- **Heartbeat** a cada poucos segundos, com o horário do servidor. Publicado pela API de
-  ingestão, porque é lá que mora o mesmo relógio que carimba os votos.
-- **Sentinela de encerramento**, uma vez, quando o prazo passa. Empurra a marca d'água além da
-  última janela e faz a raiz final ser publicada.
+- **Heartbeat** every few seconds, with the server's time. Published by the ingest API, because
+  that's where the same clock that stamps the votes lives.
+- **Closing sentinel**, once, when the deadline passes. It pushes the watermark past the last
+  window and gets the final root published.
 
-Os dois entram no fluxo unidos aos votos, com marca d'água única, e são descartados logo depois
-do filtro — cumpriram seu papel só por terem existido no fluxo com um horário. Como tudo
-permanece em tempo de evento, o replay reproduz as mesmas janelas e as mesmas raízes.
+Both enter the stream joined with the votes, under a single watermark, and are dropped right
+after the filter — they did their job just by having existed in the stream with a timestamp.
+Since everything stays in event time, replay reproduces the same windows and the same roots.
 
-O intervalo do heartbeat precisa ser confortavelmente menor que a janela da Merkle Tree: é ele
-que faz uma janela sem votos fechar, e uma janela que não fecha é um grupo de eleitores sem
-prova de inclusão.
+The heartbeat interval needs to be comfortably smaller than the Merkle Tree window: it's what
+makes a window without votes close, and a window that doesn't close is a group of voters without
+an inclusion proof.
 
-Depois da correção, o mesmo voto solitário sela em ~45s (janela de 15s + marca d'água de 5s +
-heartbeat + checkpoint) e a prova responde `200`.
+After the fix, the same lone vote seals in ~45s (15s window + 5s watermark + heartbeat +
+checkpoint) and the proof answers `200`.
